@@ -1,0 +1,1857 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Learning Assistant Run Atlas</title>
+<meta name="description" content="Every run the learning-assistant app can make, traced from input to output through CopilotKit, AG-UI and A2UI.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Schibsted+Grotesk:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --surface-2:#F6F8FA; --ink:#141C27; --muted:#5A6678; --faint:#8A95A5; --rule:#D5DCE4; --rule-2:#E4E9EF;
+  --accent:#2445C9; --accent-soft:#E3E9FC;
+  --lane-ui:#7B3FD0; --lane-ck:#0A7D72; --lane-rt:#B8470F; --lane-wr:#2445C9; --lane-sv:#A8267C; --lane-sub:#5A6B0A;
+  --ev-life:#56637A; --ev-text:#334155; --ev-tool:#A76400; --ev-state:#2445C9; --ev-act:#0A7D72; --ev-err:#C0262D;
+  --k-http:#B8470F; --k-call:#141C27; --k-ret:#6B7686; --k-a2ui:#7B3FD0; --k-local:#2F7D32; --k-int:#8B5CF6; --k-llm:#A8267C;
+  --ok:#2F7D32; --warn:#A76400; --bad:#C0262D;
+  --sel:#FFF3C4; --sel-ink:#6B4E00;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --display:"Schibsted Grotesk","IBM Plex Sans",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0D1219; --surface:#141B25; --surface-2:#1A2230; --ink:#E4E9F0; --muted:#98A4B6; --faint:#6D7889; --rule:#2A3443; --rule-2:#222B38;
+    --accent:#8EA6FF; --accent-soft:#1E2A4F;
+    --lane-ui:#B98CFF; --lane-ck:#4FD1C0; --lane-rt:#FF9A5C; --lane-wr:#8EA6FF; --lane-sv:#F27CC6; --lane-sub:#C3D45A;
+    --ev-life:#A3AFC2; --ev-text:#C8D1DE; --ev-tool:#F5B347; --ev-state:#8EA6FF; --ev-act:#4FD1C0; --ev-err:#FF7A7F;
+    --k-http:#FF9A5C; --k-call:#E4E9F0; --k-ret:#98A4B6; --k-a2ui:#B98CFF; --k-local:#7BD67F; --k-int:#B69CFF; --k-llm:#F27CC6;
+    --ok:#7BD67F; --warn:#F5B347; --bad:#FF7A7F;
+    --sel:#3A3113; --sel-ink:#F5D77A;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0D1219; --surface:#141B25; --surface-2:#1A2230; --ink:#E4E9F0; --muted:#98A4B6; --faint:#6D7889; --rule:#2A3443; --rule-2:#222B38;
+  --accent:#8EA6FF; --accent-soft:#1E2A4F;
+  --lane-ui:#B98CFF; --lane-ck:#4FD1C0; --lane-rt:#FF9A5C; --lane-wr:#8EA6FF; --lane-sv:#F27CC6; --lane-sub:#C3D45A;
+  --ev-life:#A3AFC2; --ev-text:#C8D1DE; --ev-tool:#F5B347; --ev-state:#8EA6FF; --ev-act:#4FD1C0; --ev-err:#FF7A7F;
+  --k-http:#FF9A5C; --k-call:#E4E9F0; --k-ret:#98A4B6; --k-a2ui:#B98CFF; --k-local:#7BD67F; --k-int:#B69CFF; --k-llm:#F27CC6;
+  --ok:#7BD67F; --warn:#F5B347; --bad:#FF7A7F;
+  --sel:#3A3113; --sel-ink:#F5D77A;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0}
+button{font:inherit;color:inherit}
+code,.mono{font-family:var(--mono);font-size:12px}
+a{color:var(--accent)}
+.app{display:grid;grid-template-columns:268px minmax(0,1fr);min-height:100%}
+/* sidebar */
+.side{border-right:1px solid var(--rule);background:var(--surface);padding:20px 14px 40px;position:sticky;top:env(safe-area-inset-top,0px);height:100vh;overflow:auto}
+.brand{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:-.01em;line-height:1.15;margin:0 6px 4px;text-wrap:balance}
+.brand-sub{color:var(--muted);font-size:12.5px;margin:0 6px 16px}
+.filter{width:100%;padding:8px 10px;border:1px solid var(--rule);border-radius:6px;background:var(--surface-2);color:var(--ink);font:inherit;font-size:13px;margin-bottom:12px}
+:is(.filter,.case-btn,.wire-row,.tab,.fnode,.fbtn,.dbtn):focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.grp{margin-top:14px}
+.grp-h{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:0 8px 4px}
+.case-btn{display:grid;grid-template-columns:30px 1fr;gap:4px;align-items:baseline;width:100%;text-align:left;border:0;background:transparent;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--ink)}
+.case-btn:hover{background:var(--surface-2)}
+.case-btn[aria-current="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.case-btn .cid{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.case-btn[aria-current="true"] .cid{color:var(--accent)}
+.mobile-pick{display:none}
+/* main */
+main{padding:24px clamp(16px,3vw,36px) 64px;min-width:0}
+.head{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:flex-end;justify-content:space-between;margin-bottom:14px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(24px,3vw,32px);letter-spacing:-.02em;line-height:1.1;margin:2px 0 0;text-wrap:balance}
+h2{font-family:var(--display);font-weight:700;font-size:17px;letter-spacing:-.01em;margin:0 0 10px}
+h3{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);background:var(--surface);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--muted);white-space:nowrap}
+.chip b{color:var(--ink);font-weight:600}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:18px}
+.box{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:14px 16px}
+.box p{margin:0;max-width:68ch}
+.box ul{margin:0;padding-left:18px}
+.box li{margin:2px 0}
+.trigger{font-family:var(--mono);font-size:12.5px;background:var(--surface-2);border:1px dashed var(--rule);border-radius:6px;padding:8px 10px;margin-top:8px;white-space:pre-wrap;word-break:break-word}
+/* tabs */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--rule);margin:4px 0 18px;overflow-x:auto}
+.tab{border:0;background:transparent;padding:10px 14px 9px;font-size:13.5px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;display:inline-flex;gap:7px;align-items:center}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.tab svg{width:14px;height:14px}
+.sec-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px;margin:0 0 10px}
+.sec-h h2{margin:0;font-size:20px}
+.sec-h span{font-size:12.5px;color:var(--muted)}
+/* overview */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--surface);border:1px solid var(--rule);border-radius:8px;padding:10px 14px}
+.stat b{display:block;font-family:var(--display);font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.ov-cols{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;margin-top:14px}
+.qsteps{list-style:none;margin:0;padding:0;counter-reset:q}
+.qsteps li{display:grid;grid-template-columns:26px 1fr;gap:10px;padding:7px 0;border-top:1px solid var(--rule-2)}
+.qsteps li:first-child{border-top:0}
+.qsteps li::before{counter-increment:q;content:counter(q);width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:12px;display:grid;place-items:center;margin-top:1px}
+.qsteps b{font-weight:600}
+.qsteps small{display:block;color:var(--muted);font-size:12.5px}
+.chain{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.7}
+.chain span{color:var(--ink)}
+/* wire list */
+.wire{font-family:var(--mono);font-size:11.8px;background:var(--surface);border:1px solid var(--rule);border-radius:8px;overflow:hidden}
+.wire-h{padding:10px 14px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.wire-h h2{margin:0}
+.wire-h span{font-family:var(--sans);font-size:12px;color:var(--muted)}
+.wire-list{max-height:380px;overflow:auto}
+.wire-row{display:grid;grid-template-columns:34px 170px minmax(0,1fr) 78px;gap:8px;padding:5px 14px;border-top:1px solid var(--rule-2);cursor:pointer;align-items:baseline;background:transparent;border-left:0;border-right:0;border-bottom:0;width:100%;text-align:left;font:inherit}
+.wire-row:first-child{border-top:0}
+.wire-row:hover{background:var(--surface-2)}
+.wire-row[aria-selected="true"]{background:var(--sel);color:var(--sel-ink)}
+.wire-row .n{color:var(--faint);font-variant-numeric:tabular-nums}
+.wire-row .t{font-weight:600}
+.wire-row .d{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.wire-row[aria-selected="true"] .d{color:inherit}
+.wire-row .o{font-size:10.5px;text-align:right;white-space:nowrap}
+.state-list{margin:0;padding:0;list-style:none;font-family:var(--mono);font-size:11.8px}
+.state-list li{display:grid;grid-template-columns:118px minmax(0,1fr);gap:8px;padding:5px 0;border-top:1px solid var(--rule-2)}
+.state-list li:first-child{border-top:0}
+.state-list .k{color:var(--lane-sv);font-weight:600}
+.notes{margin-top:14px}
+.notes li{margin:4px 0;max-width:90ch}
+/* flow visualization */
+.flow-card{background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+.flow-card-h{display:flex;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule);font-size:13px;color:var(--muted);flex-wrap:wrap}
+.flow-card-h b{color:var(--ok);font-weight:500;font-size:12px}
+.flow{display:grid;grid-template-columns:minmax(0,1fr) 340px}
+.flow-canvas{position:relative;overflow:auto;max-height:78vh;min-height:420px;background-color:var(--surface-2);background-image:radial-gradient(var(--rule) 1px,transparent 1.2px);background-size:18px 18px}
+.flow-inner{position:relative;margin:0 auto}
+.flow-inner svg{position:absolute;inset:0;overflow:visible}
+.edge{fill:none;stroke:var(--faint);stroke-width:1.6;opacity:.55}
+.edge.pending{stroke:var(--rule);stroke-dasharray:4 5;opacity:1}
+.edge.done{stroke:var(--ok);opacity:.75}
+.edge.active{stroke:var(--accent);stroke-width:2.2;opacity:1;stroke-dasharray:7 6;animation:dash .8s linear infinite}
+.edge.side{stroke-dasharray:3 4}
+@keyframes dash{to{stroke-dashoffset:-26}}
+.elabel{position:absolute;transform:translate(-50%,-50%);font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:4px;background:var(--surface);border:1px solid var(--rule);color:var(--muted);white-space:nowrap;pointer-events:none}
+.elabel.active{border-color:var(--accent);color:var(--accent)}
+.fnode{position:absolute;display:flex;flex-direction:column;gap:2px;text-align:left;padding:7px 10px 8px 12px;border-radius:8px;border:1.5px solid var(--lc);background:color-mix(in srgb,var(--lc) 13%,var(--surface));cursor:pointer;transition:opacity .25s,box-shadow .25s,background .25s,border-color .25s;overflow:hidden}
+.fnode::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--lc)}
+.fnode .ft{font-weight:600;font-size:12.5px;line-height:1.25;color:var(--ink);display:flex;gap:6px;align-items:center}
+.fnode .fl{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.04em;color:var(--lc);text-transform:uppercase}
+.fnode .fs{font-family:var(--mono);font-size:10.5px;line-height:1.35;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fnode.pending{--lc:var(--faint);background:var(--surface);opacity:.55;border-style:dashed}
+.fnode.done{background:color-mix(in srgb,var(--lc) 8%,var(--surface))}
+.fnode.done .ft::after{content:"✓";color:var(--ok);font-size:12px}
+.fnode.active{box-shadow:0 0 0 4px color-mix(in srgb,var(--lc) 28%,transparent),0 6px 18px color-mix(in srgb,var(--lc) 25%,transparent);background:color-mix(in srgb,var(--lc) 20%,var(--surface));animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--lc) 16%,transparent),0 6px 18px color-mix(in srgb,var(--lc) 25%,transparent)}}
+.fctl{position:sticky;top:12px;left:12px;z-index:3;width:230px;margin:12px 0 -96px 12px;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,.08)}
+.fctl-row{display:flex;gap:6px}
+.fbtn{width:32px;height:30px;border-radius:6px;border:1px solid var(--rule);background:var(--surface-2);display:grid;place-items:center;cursor:pointer;padding:0}
+.fbtn:hover{border-color:var(--accent);color:var(--accent)}
+.fbtn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.fbtn svg{width:14px;height:14px}
+.fctl-l{font-size:12px;color:var(--muted);margin:8px 0 5px;font-variant-numeric:tabular-nums}
+.bar{height:5px;border-radius:3px;background:var(--rule-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.fdetail{border-left:1px solid var(--rule);background:var(--surface);display:flex;flex-direction:column;max-height:78vh;min-height:420px}
+.fdetail-h{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 10px;border-bottom:1px solid var(--rule-2)}
+.fdetail-h h3{margin:0;font-family:var(--display);font-size:15px;letter-spacing:0;text-transform:none;color:var(--ink)}
+.fdetail-b{padding:12px 16px 18px;overflow:auto}
+.fdetail-b h4{margin:0 0 4px;font-size:15px;color:var(--accent);font-weight:600}
+.fdetail-b p{margin:0 0 12px;color:var(--muted);font-size:13px}
+.fdetail-b .lbl{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:14px 0 6px}
+.comp{display:flex;gap:8px;align-items:baseline;font-size:12.5px;padding:3px 0}
+.comp i{width:8px;height:8px;border-radius:2px;flex:none;transform:translateY(1px)}
+.comp span{color:var(--muted);font-family:var(--mono);font-size:11px}
+details.it{border:1px solid var(--rule-2);border-radius:6px;margin:0 0 6px;background:var(--surface)}
+details.it[open]{border-color:var(--rule)}
+details.it summary{list-style:none;cursor:pointer;padding:6px 8px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:baseline;font-family:var(--mono);font-size:11.5px}
+details.it summary::-webkit-details-marker{display:none}
+details.it summary .lab{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+details.it .body{padding:0 8px 8px}
+details.it .body p{font-family:var(--sans);font-size:12.5px;color:var(--muted);margin:2px 0 8px}
+.kind{font-family:var(--mono);font-size:9.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:4px;color:var(--surface);white-space:nowrap}
+.ref{font-family:var(--mono);font-size:11px;color:var(--muted);margin:0 0 8px;word-break:break-all}
+pre.json{margin:0;background:var(--surface-2);border:1px solid var(--rule-2);border-radius:6px;padding:9px 10px;font-family:var(--mono);font-size:11px;line-height:1.5;overflow:auto;white-space:pre;max-height:300px}
+.j-k{color:var(--lane-sv)} .j-s{color:var(--lane-ck)} .j-n{color:var(--lane-rt)} .j-b{color:var(--accent)}
+.lane-key{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);padding:10px 14px;border-top:1px solid var(--rule)}
+.lane-key span{display:inline-flex;align-items:center;gap:6px}
+.lane-key i{width:10px;height:10px;border-radius:3px}
+/* interactive demo */
+.demo{background:var(--surface);border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+.demo-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--rule)}
+.demo-bar h3{margin:0 8px 0 0;font-family:var(--display);font-size:15px;letter-spacing:0;text-transform:none;color:var(--ink)}
+.dbtn{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--rule);background:var(--surface-2);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}
+.dbtn.go{background:color-mix(in srgb,var(--ok) 16%,var(--surface));border-color:color-mix(in srgb,var(--ok) 45%,var(--rule));color:var(--ok);font-weight:600}
+.dbtn:hover{border-color:var(--accent)}
+.dbtn:disabled{opacity:.5;cursor:default}
+.speed{display:inline-flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
+.speed input{width:90px;accent-color:var(--accent)}
+.lanes-strip{display:flex;flex-wrap:wrap;gap:5px;margin-left:auto}
+.lanes-strip span{font-family:var(--mono);font-size:10px;font-weight:600;padding:3px 7px;border-radius:4px;border:1px solid var(--rule);color:var(--faint);transition:all .2s}
+.lanes-strip span.on{color:var(--surface);background:var(--lc);border-color:var(--lc)}
+.now{padding:9px 14px;border-bottom:1px solid var(--rule-2);font-size:12.5px;color:var(--muted);background:var(--surface-2);min-height:38px;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.now b{color:var(--ink);font-weight:600}
+.now code{color:var(--ink)}
+.demo-grid{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);min-height:440px}
+.d-chat{border-right:1px solid var(--rule);display:flex;flex-direction:column;min-width:0}
+.pane-h{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:10px 12px 6px;display:flex;justify-content:space-between}
+.d-msgs{flex:1;overflow:auto;padding:4px 12px 14px;display:flex;flex-direction:column;gap:8px;max-height:520px}
+.bub{max-width:88%;padding:7px 10px;border-radius:10px;font-size:12.8px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.bub.user{align-self:flex-end;background:var(--accent);color:var(--surface);border-bottom-right-radius:3px}
+.bub.bot{align-self:flex-start;background:var(--surface-2);border:1px solid var(--rule-2);border-bottom-left-radius:3px}
+.bub.bot.streaming::after{content:"▍";color:var(--accent);animation:blink 1s steps(1) infinite}
+.bub.err{border-color:color-mix(in srgb,var(--bad) 40%,var(--rule));background:color-mix(in srgb,var(--bad) 8%,var(--surface))}
+@keyframes blink{50%{opacity:0}}
+.typing{align-self:flex-start;display:flex;gap:4px;padding:8px 10px}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--faint);animation:bounce 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes bounce{50%{transform:translateY(-4px);opacity:.5}}
+.tcard{align-self:stretch;border:1px solid var(--rule);border-radius:8px;padding:8px 10px;font-size:12.5px;background:var(--surface);display:flex;flex-direction:column;gap:4px}
+.tcard .row{display:flex;gap:8px;align-items:center}
+.tcard .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex:none}
+.tcard.running .dot{animation:bounce 1s infinite}
+.tcard.done .dot{background:var(--ok)} .tcard.failed .dot{background:var(--bad)} .tcard.stopped .dot{background:var(--faint)}
+.tcard .tt{font-weight:600}
+.tcard .sm{font-size:11.5px;color:var(--muted)}
+.tcard .stop{margin-left:auto;font-size:11px;border:1px solid var(--rule);border-radius:5px;padding:1px 7px;color:var(--muted)}
+.tcard.concept .term{font-family:var(--display);font-weight:700;font-size:15px}
+.tcard .btns{display:flex;gap:6px;margin-top:4px}
+.tcard .btns span{border:1px solid var(--rule);border-radius:6px;padding:3px 9px;font-size:12px}
+.tcard .btns span.picked{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.subcard{border-top:1px dashed var(--rule);padding-top:5px;margin-top:2px;font-size:12px;color:var(--ok)}
+.surface{align-self:stretch;border:1px solid color-mix(in srgb,var(--lane-ck) 45%,var(--rule));border-radius:8px;padding:9px 11px;background:color-mix(in srgb,var(--lane-ck) 6%,var(--surface));font-size:12.5px}
+.surface .st{font-weight:700;font-family:var(--display)}
+.surface table{border-collapse:collapse;margin:6px 0;font-size:12px}
+.surface td{border-top:1px solid var(--rule-2);padding:3px 8px 3px 0}
+.surface .co{border-left:3px solid var(--lane-ck);padding:3px 8px;margin-top:6px;color:var(--muted)}
+.d-canvas{display:flex;flex-direction:column;min-width:0;position:relative}
+.ctabs{display:flex;gap:4px;padding:0 12px;border-bottom:1px solid var(--rule-2)}
+.ctabs span{font-size:12px;padding:6px 10px;border-bottom:2px solid transparent;color:var(--muted)}
+.ctabs span.on{border-bottom-color:var(--ink);color:var(--ink);font-weight:600}
+.stepper{display:flex;gap:4px;padding:10px 12px;flex-wrap:wrap}
+.stepper span{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--rule);color:var(--faint)}
+.stepper span.un{color:var(--ink);border-color:var(--muted)}
+.stepper span.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.stepper span.bd{border-style:dashed;border-color:var(--accent);color:var(--accent)}
+.cbody{padding:4px 14px 16px;overflow:auto;max-height:470px;transition:box-shadow .3s}
+.cbody.flash{box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--k-a2ui) 50%,transparent)}
+.cbody h4{font-family:var(--display);font-size:17px;margin:4px 0 6px}
+.cbody p{margin:0 0 8px;font-size:13px}
+.empty{color:var(--faint);font-size:13px;text-align:center;padding:60px 10px}
+.skel{height:10px;border-radius:5px;background:linear-gradient(90deg,var(--rule-2),var(--surface-2),var(--rule-2));background-size:200% 100%;animation:sh 1.2s infinite;margin:9px 0}
+@keyframes sh{to{background-position:-200% 0}}
+.callout{border-left:3px solid var(--warn);background:color-mix(in srgb,var(--warn) 8%,var(--surface));padding:6px 10px;border-radius:4px;font-size:12.5px;margin:8px 0}
+.callout.err{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,var(--surface))}
+.callout .retry{display:inline-block;margin-top:5px;border:1px solid var(--bad);color:var(--bad);border-radius:5px;padding:1px 8px;font-size:11.5px}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0}
+.tags span{font-size:11.5px;border:1px solid var(--rule);border-radius:999px;padding:1px 8px}
+.stream-tag{font-family:var(--mono);font-size:10px;color:var(--accent);border:1px solid var(--accent);border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:2px}
+.md{font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;background:var(--surface-2);border:1px solid var(--rule-2);border-radius:6px;padding:8px 10px}
+.qq{border:1px solid var(--rule-2);border-radius:7px;padding:7px 9px;margin:6px 0;font-size:12.5px}
+.qq .opts{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.qq .opts span{border:1px solid var(--rule);border-radius:5px;padding:1px 7px;font-size:11.5px}
+.qq .opts span.pick{background:var(--accent);color:var(--surface);border-color:var(--accent)}
+.qbar{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin-top:8px}
+.qbar span.sub{border:1px solid var(--rule);border-radius:6px;padding:2px 10px}
+.qbar span.sub.on{background:var(--accent);color:var(--surface);border-color:var(--accent)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:6px 0}
+.tiles div{border:1px solid var(--rule-2);border-radius:7px;padding:6px 9px}
+.tiles b{display:block;font-family:var(--display);font-size:18px}
+.tiles span{font-size:11px;color:var(--muted)}
+.bview{border:1px solid var(--rule);border-radius:8px;padding:8px 10px;margin:6px 0;font-size:12.5px}
+.bview.draft{border-style:dashed;border-color:var(--accent)}
+.bview b{font-family:var(--display)}
+.toast{position:absolute;right:12px;top:44px;background:var(--ink);color:var(--surface);font-size:12px;padding:6px 10px;border-radius:7px;max-width:70%;opacity:0;transform:translateY(-4px);transition:all .25s;pointer-events:none;z-index:2}
+.toast.show{opacity:1;transform:none}
+.demo-foot{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);border-top:1px solid var(--rule)}
+.demo-foot > div{min-width:0}
+.demo-foot > div + div{border-left:1px solid var(--rule)}
+.dwire,.dstate{font-family:var(--mono);font-size:11px;line-height:1.55;padding:4px 12px 12px;height:220px;overflow:auto;white-space:pre}
+.dwire .l-http{color:var(--k-http)} .dwire .l-ev{color:var(--muted)} .dwire .l-ev b{font-weight:600}
+.dstate .sk{display:block;padding:0 3px;border-radius:3px;transition:background 1.2s}
+.dstate .sk.flash{background:var(--sel);transition:none}
+.dstate .kk{color:var(--lane-sv)}
+.sysnote{align-self:center;text-align:center;font-size:12px;color:var(--muted);border:1px dashed var(--rule);border-radius:8px;padding:8px 10px;max-width:95%}
+/* overview page */
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px}
+.pipe{list-style:none;margin:0;padding:0;counter-reset:p}
+.pipe li{display:grid;grid-template-columns:26px 1fr;gap:8px;padding:7px 0;border-top:1px solid var(--rule-2)}
+.pipe li:first-child{border-top:0}
+.pipe li::before{counter-increment:p;content:counter(p);font-family:var(--mono);font-size:11px;color:var(--surface);background:var(--lane-wr);border-radius:4px;text-align:center;height:18px;line-height:18px;margin-top:2px}
+.pipe li.rt::before{background:var(--lane-rt)}
+.pipe li.src::before{background:var(--lane-sv)}
+.pipe code{font-weight:600}
+.pipe small{display:block;color:var(--muted);font-size:12.5px}
+.tbl-wrap{overflow-x:auto}
+table.t{border-collapse:collapse;width:100%;font-size:12.8px}
+table.t th,table.t td{text-align:left;padding:7px 8px;border-top:1px solid var(--rule-2);vertical-align:top}
+table.t th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;border-top:0}
+.arch{width:100%;height:auto;display:block}
+.arch text{font-family:var(--sans);fill:var(--ink)}
+.arch .t-s{font-size:11px;fill:var(--muted)}
+.arch .t-m{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
+.arch .t-b{font-weight:600;font-size:13px}
+.arch .bx{fill:var(--surface);stroke:var(--rule);stroke-width:1}
+.arch .ar{stroke:var(--muted);stroke-width:1.4;fill:none}
+.arch .ar-a{fill:var(--muted)}
+@media (max-width:1180px){.flow{grid-template-columns:minmax(0,1fr)}.fdetail{border-left:0;border-top:1px solid var(--rule);max-height:none;min-height:0}.ov-cols{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:820px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{display:none}
+  .mobile-pick{display:block;margin-bottom:14px}
+  .mobile-pick select{width:100%;padding:9px 10px;border:1px solid var(--rule);border-radius:6px;background:var(--surface);color:var(--ink);font:inherit}
+  .wire-row{grid-template-columns:28px 130px minmax(0,1fr)}
+  .wire-row .o{display:none}
+  .demo-grid,.demo-foot{grid-template-columns:minmax(0,1fr)}
+  .d-chat{border-right:0;border-bottom:1px solid var(--rule)}
+  .demo-foot > div + div{border-left:0;border-top:1px solid var(--rule)}
+  .lanes-strip{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+
+<div class="app">
+  <aside class="side" aria-label="Cases">
+    <p class="brand">Learning Assistant Run Atlas</p>
+    <p class="brand-sub">Every path a turn can take, from the student's click to the pixels on the canvas. Traced from the <code>learning-assistant</code> branch.</p>
+    <input id="filter" class="filter" type="search" placeholder="Filter cases (e.g. board, submit)" aria-label="Filter cases">
+    <nav id="nav"></nav>
+  </aside>
+  <main>
+    <div class="mobile-pick"><label class="eyebrow" for="pick">Case</label><select id="pick"></select></div>
+    <div id="view"></div>
+  </main>
+</div>
+
+<script>
+/* ────────────────────────── Lanes and kinds ────────────────────────── */
+const LANES = [
+  {id:"ui",  short:"UI",   name:"Student · UI",      sub:"CopilotChat + canvas components", c:"--lane-ui"},
+  {id:"ck",  short:"CK",   name:"CopilotKit client", sub:"react-core v2 · agent.state",     c:"--lane-ck"},
+  {id:"rt",  short:"RT",   name:"Runtime route",     sub:"/api/copilotkit · A2UIMiddleware",c:"--lane-rt"},
+  {id:"wr",  short:"WRAP", name:"Wrapper",           sub:"LearningSupervisorAgent · rxjs",  c:"--lane-wr"},
+  {id:"sv",  short:"LLM",  name:"Supervisor LLM",    sub:"BuiltInAgent · gpt-5.4-mini",     c:"--lane-sv"},
+  {id:"sub", short:"TOOL", name:"Tools & subagents", sub:"server tools · OpenAI · Tavily",  c:"--lane-sub"},
+];
+const LI = Object.fromEntries(LANES.map((l,i)=>[l.id,i]));
+const KINDS = {
+  act:  {name:"step",        c:"--muted"},
+  http: {name:"http",        c:"--k-http"},
+  ev:   {name:"ag-ui event", c:"--ev-state"},
+  call: {name:"call",        c:"--k-call"},
+  ret:  {name:"return",      c:"--k-ret"},
+  a2ui: {name:"a2ui",        c:"--k-a2ui"},
+  local:{name:"client state",c:"--k-local"},
+  int:  {name:"internal",    c:"--k-int"},
+  llm:  {name:"llm",         c:"--k-llm"},
+};
+const EVC = t => t.startsWith("RUN_ERROR") ? "--ev-err" : t.startsWith("RUN_") ? "--ev-life" : t.startsWith("TEXT_") ? "--ev-text" : t.startsWith("TOOL_") ? "--ev-tool" : t.startsWith("STATE_") ? "--ev-state" : t.startsWith("ACTIVITY") ? "--ev-act" : "--ev-life";
+const ORIGIN = {sv:"Supervisor", wr:"wrapper", rt:"middleware", sub:"tool"};
+
+/* ────────────────────────── Step builders ────────────────────────── */
+const act  = (lane,l,d,n,ref)=>({k:"act",f:lane,t:lane,l,d,n,ref});
+const llm  = (l,d,n,ref)=>({k:"llm",f:"sv",t:"sv",l,d,n,ref});
+const local= (lane,l,d,n,ref,extra)=>Object.assign({k:"local",f:lane,t:lane,l,d,n,ref},extra||{});
+const int  = (lane,l,d,n,ref)=>({k:"int",f:lane,t:lane,l,d,n,ref});
+const http = (l,d,n,ref)=>({k:"http",f:"ck",t:"rt",l,d,n,ref});
+const call = (f,t,l,d,n,ref)=>({k:"call",f,t,l,d,n,ref});
+const ret  = (f,t,l,d,n,ref)=>({k:"ret",f,t,l,d,n,ref});
+const a2ui = (l,d,n,ref)=>({k:"a2ui",f:"ck",t:"ui",l,d,n,ref});
+const ev   = (from,type,fields,n,ref)=>({k:"ev",f:from,t:"ck",l:type,ev:type,d:Object.assign({type},fields||{}),n,ref});
+/* A phase: one step of the flow visualization. Its nodes: the first is the main one; the others are its effects, unless par (parallel peers). */
+const ph   = (t,d,nodes,e,par)=>({k:"ph",t,d,nodes,e,par});
+const N    = (lane,t,s)=>({lane,t,s});
+
+const describe = s => {
+  const d = s.d||{};
+  switch(s.ev){
+    case "TOOL_CALL_START": return d.toolCallName||"";
+    case "TOOL_CALL_ARGS": return (d.delta||"").slice(0,48);
+    case "TOOL_CALL_RESULT": return (d.content||"").slice(0,60);
+    case "STATE_DELTA": return (d.delta||[]).map(o=>`${o.op} ${o.path}`).join(", ");
+    case "TEXT_MESSAGE_START": return d.role||"";
+    case "TEXT_MESSAGE_CONTENT": return JSON.stringify(d.delta||"").slice(0,48);
+    case "ACTIVITY_SNAPSHOT": return `${d.activityType} ${d.messageId}`;
+    case "RUN_ERROR": return d.message||"";
+    default: return "";
+  }
+};
+const short = (t,n=38)=> t.length>n ? t.slice(0,n-1)+"…" : t;
+
+/* ────────────────────────── Shared payloads ────────────────────────── */
+const SEALED = "v1.3kP9…iv.Qm1V…tag.Zx8r…ciphertext";
+const SETTINGS = {questionCount:5, learningLevel:"beginner", theme:"system"};
+const FE_TOOLS = ["setTheme","setLayout","setLearningSettings","showConceptCard","showComparison","showSteps","showCodeExample"];
+const CTX = [{description:"Current theme and page layout: chosen theme and the one on screen, chosen chat mode and the one on screen, view mode, and page width in px", value:"{\"theme\":\"system\",\"themeOnScreen\":\"light\",\"chatMode\":\"docked\",\"chatOnScreen\":\"docked\",\"viewMode\":\"auto\",\"width\":1440}"}];
+const IDLE = {stage:"idle",status:{running:null},topic:null,research:null,material:null,quiz:null,evaluation:null,score:null,feedback:null,reflection:null,quizOutdated:false,board:[],draft:null,boardDraft:null};
+const RESEARCH = {title:"JavaScript closures",summary:"A closure is a function bundled together with references to the variables of the scope where it was created…",keyInsight:"A function keeps access to the variables around where it was defined, even after the outer function has returned.",keyTerms:[{term:"Lexical scope",definition:"Scope decided by where code is written, not where it runs."},{term:"Closure",definition:"A function plus the variables it captured."}],sources:[{title:"Closures - JavaScript | MDN",url:"https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Closures"}]};
+const MATERIAL = {original:"# JavaScript closures\n\n## What a closure is\nA closure is a function bundled together with references to its surrounding state.\n\n## Why it matters\nIt lets a function keep private data between calls.",simplified:null,view:"original"};
+const QS = [
+  {id:"q1",concept:"Lexical scope",question:"Where is a closure's scope decided?",options:["Where it is called","Where it is written","At import time","By `this`"]},
+  {id:"q2",concept:"Closures in loops",question:"What does `let` in a for-loop give each callback?",options:["Its own binding","The last value","undefined","A copy of the array"]},
+  {id:"q3",concept:"Lexical scope",question:"Can an inner function read an outer variable after the outer returns?",options:["No","Only with var","Only in strict mode","Yes"]},
+];
+const QUIZ = {id:"8f0c2a1e-…",questions:QS,answers:{},answerKeySealed:"v1.…sealed answer key…",submitted:false};
+const EVALUATION = {correct:2,total:3,percent:67,weakestConcept:"Lexical scope",perQuestion:[{qid:"q1",correctIndex:1,isCorrect:false,explanation:"Scope is decided where the function is written."},{qid:"q2",correctIndex:0,isCorrect:true,explanation:"…"},{qid:"q3",correctIndex:3,isCorrect:true,explanation:"…"}],mastery:[{concept:"Lexical scope",percent:50},{concept:"Closures in loops",percent:100}]};
+const FEEDBACK_OPS = [{version:"v0.9",createSurface:{surfaceId:"feedback",catalogId:"learning-assistant/feedback/v1"}},{version:"v0.9",updateComponents:{surfaceId:"feedback",components:[{id:"root",component:"FeedbackCard",title:"Solid start, Practitioner",body:"You understand closures in loops. Lexical scope needs another look.",children:["c1","r1","n1"]},{id:"c1",component:"ConceptChip",concept:"Lexical scope",percent:50,isWeakest:true},{id:"r1",component:"ReviewLink",label:"Review lexical scope",concept:"Lexical scope"},{id:"n1",component:"NextStepList",title:"Next steps",steps:["Reread “What a closure is”","Retake the quiz"]}]}}];
+const BOARD_VIEW = {id:"board-91d2…",title:"Git cheat sheet",operations:[{version:"v0.9",createSurface:{surfaceId:"board-91d2…",catalogId:"learning-assistant/board/v1"}},{version:"v0.9",updateComponents:{surfaceId:"board-91d2…",components:[{id:"root",component:"Stack",children:["cols"]},{id:"cols",component:"Columns",children:["c1","c2"]},{id:"c1",component:"CodeBlock",language:"bash",code:"git switch -c feature"},{id:"c2",component:"KeyValueList",items:[{key:"git status",value:"what changed"}]}]}}],revision:1};
+const supState = o => Object.assign({settings:{questionCount:5,learningLevel:"beginner"},stage:"idle",status:{running:null},topic:null,research:null,material:null,quiz:null,evaluation:null,score:null,hasFeedback:false,hasReflection:false,quizOutdated:false,board:[]},o||{});
+const resetOps = () => Object.entries(IDLE).map(([k,v])=>({op:"add",path:"/"+k,value:v}));
+
+const TOOL_LABELS = {
+  research:{running:"Researching",done:"Research ready",failed:"Research failed",stopped:"Research stopped"},
+  makeMaterial:{running:"Writing learning material",done:"Learning material ready",failed:"Learning material failed",stopped:"Learning material stopped"},
+  simplify:{running:"Simplifying learning material",done:"Learning material simplified",failed:"Simplify failed",stopped:"Simplify stopped"},
+  generateQuiz:{running:"Writing quiz questions",done:"Quiz ready",failed:"Quiz failed",stopped:"Quiz stopped"},
+  evaluate:{running:"Evaluating your answers",done:"Evaluation ready",failed:"Evaluation failed",stopped:"Evaluation stopped"},
+  renderSurface_chat:{running:"Composing a view",done:"View ready"},
+  renderSurface_canvas:{running:"Composing a Board view",done:"Added to the Board"},
+  updateBoardSurface:{running:"Updating a Board view",done:"Board view updated"},
+  deleteBoardSurface:{running:"Removing from the Board",done:"Removed from the Board"},
+};
+
+/* Every chat-started run begins the same way: four phases. */
+const pre = (msg, o={}) => [
+  ...(o.skipUi ? [] : [
+    ph("Student sends a message","The student types in the CopilotChat input or picks a suggestion pill.",[N("ui",o.uiNode||"Chat input",`“${short(msg,44)}”`)]),
+    act("ui", o.ui || `Student sends “${msg}”`, null, o.uiNote || "Typed in the CopilotChat input, or picked from a stage suggestion pill (useConfigureSuggestions)."),
+  ]),
+  ph("CopilotKit posts the run","The message joins agent.messages and one POST carries the whole RunAgentInput: history, full state, frontend tools, display context and settings. The OpenAI key rides sealed in a header.",[N("ck","copilotkit.runAgent","POST /agent/learning/run · SSE")],"addMessage"),
+  local("ck", o.ck || "agent.addMessage(user) · copilotkit.runAgent({agent})", {role:"user",content:msg}, "CopilotChat appends the user message to agent.messages and starts a run. Provider `properties` ({settings}) are merged into forwardedProps.", null, {say:msg}),
+  http("POST /api/copilotkit/agent/learning/run", {
+    headers:{"x-openai-key-sealed":SEALED, accept:"text/event-stream"},
+    body:{threadId:"th_7f3c…",runId:"run_…",messages:["…history…",{id:"m_u1",role:"user",content:msg}],state:o.state||IDLE,tools:(o.tools||FE_TOOLS).map(n=>({name:n,description:"…",parameters:"{json schema}"})),context:CTX,forwardedProps:{settings:SETTINGS}}
+  }, "The whole AG-UI RunAgentInput. The client sends the full state and history every run; the server keeps nothing between runs (v1 has no persistence). Frontend tools travel as `tools`; useAgentContext travels as `context`.", "apps/web/components/layout/AppShell/index.tsx · useAppShell"),
+  ph("Runtime builds the agent","The runtime opens the sealed key and builds a LearningSupervisorAgent for this request, wrapped in A2UIMiddleware.",[N("rt","CopilotRuntime","unseal key · A2UIMiddleware")],"HTTP POST"),
+  act("rt","agents({request}) → new LearningSupervisorAgent",{prompt:"SUPERVISOR_PROMPT",tools:"createLearningTools",apiKey:"unsealApiKey(x-openai-key-sealed, API_KEY_SEAL_SECRET)"},"The agent is built per request so each run uses the caller's own OpenAI key. The runtime clones it, sets messages/state/threadId, then wraps the run in A2UIMiddleware (a2ui.agents = [learning], injectA2UITool: false).","apps/web/app/api/copilotkit/[[...slug]]/route.ts"),
+  call("rt","wr","run(input)",null,"A2UIMiddleware.run() → runNextWithState → LearningSupervisorAgent.run(input). Every event the wrapper emits flows back through the middleware's processStream."),
+  ph("Wrapper prepares the Supervisor","Settings are resolved, tools are bound to this run's context, and the Supervisor gets a trimmed state and a repaired history.",[N("wr","LearningSupervisorAgent","settings · tools(ctx) · BuiltInAgent"),N("sv","Supervisor input","trimmed state · no A2UI context")],"run(input)"),
+  act("wr","resolveRunSettings · new BuiltInAgent(maxSteps 8)",{settings:{...SETTINGS,apiKey:"sk-…(opened)"},model:"gpt-5.4-mini",providerOptions:{openai:{reasoningEffort:"low"}},tools:["research","makeMaterial","simplify","generateQuiz","evaluate","renderSurface","readBoardSurface","deleteBoardSurface","updateBoardSurface"]},"Settings come from forwardedProps.settings (defaults if invalid). ctx gives tools getState(), an AbortSignal, the sealed answer-key store and a throttled reportDraft().","apps/agent/src/services/supervisor-agent.ts · run"),
+  call("wr","sv","inner.run(trimmed input)",{messages:"repairToolHistory(input.messages)",context:"dropA2UIContext(input.context)",state:o.sup||supState()},"The Supervisor never sees full learning material or the quiz: toSupervisorState sends counts and flags. BuiltInAgent appends it to the system prompt under “## Application State”.","apps/agent/src/services/supervisor-state.ts"),
+  ev("sv","RUN_STARTED",{threadId:"th_7f3c…",runId:"run_…"},"Passes the wrapper's operators unchanged. The chat shows the assistant as busy; isRunning = true locks canvas editing."),
+];
+const fin = (n, title="Run ends") => [
+  ph(title,"A2UIMiddleware releases the held RUN_FINISHED last and the SSE response closes. isRunning turns false and the canvas unlocks.",[N("ck","RUN_FINISHED","stream closes · isRunning = false")],"SSE"),
+  ev("sv","RUN_FINISHED",{threadId:"th_7f3c…",runId:"run_…"}, n || "A2UIMiddleware holds RUN_FINISHED until the stream completes, then releases it. The SSE response closes."),
+];
+/* A subagent tool call's opening: one phase. */
+const toolOpen = (id,name,args,cardNote,task) => [
+  ph(`Supervisor calls ${name}`,`The Supervisor picks ${name}. Its call streams to the client, where the chat shows a progress card.${task?" The wrapper marks the task running, so the canvas moves to that stage and shows a skeleton.":""}`,
+    [N("sv","Supervisor LLM",`${name}(${short(args==="{}"?"":args,30)})`), N("ui","Chat card",`${(TOOL_LABELS[name]||{running:name}).running}…`), ...(task?[N("wr","status.running",`"${task}" → STATE_DELTA`)]:[])],"inner.run"),
+  llm(`LLM step → tool call ${name}(${args==="{}"?"":"…"})`,{model:"gpt-5.4-mini",decides:`${name}(${args})`},"The Supervisor chooses a tool from TOOL_ROUTING in the prompt. The prompt tells it to write no preamble before a card tool."),
+  ev("sv","TOOL_CALL_START",{toolCallId:id,toolCallName:name,parentMessageId:"m_a1"},cardNote),
+  ...(task?[ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/status",value:{running:task}}]},"Added by syncStateFromTools (createStartUpdate). The canvas follows the running stage (getFollowedStage) and shows its skeleton. /draft is already null, so no op for it.","apps/agent/src/services/state-sync.ts")]:[]),
+  ev("sv","TOOL_CALL_ARGS",{toolCallId:id,delta:args},"Streamed in one or more deltas."),
+  ev("sv","TOOL_CALL_END",{toolCallId:id}),
+];
+const muted = () => [
+  ph("Trailing text is muted","If the Supervisor adds text after a successful card tool, muteRepliesAfterCards drops it: the card is the reply.",[N("wr","muteRepliesAfterCards","drops TEXT_MESSAGE_*")],"LLM step"),
+  int("wr","muteRepliesAfterCards drops any trailing TEXT_MESSAGE_*",{muted:true,reason:"latest tool result is a CARD_TOOLS success"},"A failure would let the text through.","apps/agent/src/services/card-replies.ts"),
+];
+
+/* ────────────────────────── Cases ────────────────────────── */
+const CASES = [];
+const add = c => CASES.push(c);
+
+/* ── Setup ── */
+add({id:"a1-bootstrap",group:"Setup",code:"A1",title:"API key and app bootstrap",
+  trigger:"Open http://localhost:3000 with no key saved, enter an OpenAI key, press Save.",
+  summary:"The key is checked with OpenAI by a Next.js server action, sealed with AES-256-GCM, and kept only in sessionStorage. The shell then mounts CopilotKitProvider, which registers every frontend tool, renderer and context. No agent run happens yet.",
+  sees:["Redirect to /api-key, then back to the empty two-panel app","Welcome screen with three idle suggestions"],
+  runs:"0 runs", llm:"0 LLM calls",
+  steps:[
+    ph("App finds no key","useAppShell rehydrates the api-key (sessionStorage), settings and layout stores before first paint. With no sealed key it sends the student to /api-key.",[N("ui","useAppShell","rehydrate stores → no sealed key"),N("ui","router.replace","/api-key")]),
+    act("ui","Visit / → useAppShell finds no sealed key",null,"useAppShell rehydrates the api-key (sessionStorage), settings and layout stores, then router.replace('/api-key') when sealedKey is null.","apps/web/hooks/use-app-shell.ts"),
+    ph("Student submits the key","ApiKeyForm posts FormData to a Next.js server action. This is not CopilotKit; it runs on the same Next.js server as the runtime.",[N("ui","API key form","sk-proj-…"),N("rt","submitApiKey","server action")],"form submit"),
+    act("ui","Submit key on /api-key form",{apiKey:"sk-proj-…"},"ApiKeyForm posts FormData to the `submitApiKey` server action."),
+    call("ck","rt","server action submitApiKey(formData)",{field:"apiKey"},"Shown on the runtime lane because it runs on the same Next.js server.","apps/web/features/api-key/services/api-key-actions.ts"),
+    ph("Server checks the key with OpenAI","Listing models is free. OpenAI's error text is never echoed back, because it contains part of the key.",[N("rt","validateApiKey","GET /v1/models → 200")],"validate"),
+    act("rt","validateApiKey → GET api.openai.com/v1/models",{status:200},"A bad key, no network or a timeout returns a readable error to the form instead."),
+    ph("Server seals the key","AES-256-GCM with a key derived from API_KEY_SEAL_SECRET (HKDF-SHA256) and a fresh random IV. Only the sealed token goes back.",[N("rt","sealApiKey","v1.<iv>.<tag>.<ciphertext>")],"seal"),
+    act("rt","sealApiKey(key, API_KEY_SEAL_SECRET)",{token:SEALED,format:"v1.<iv>.<tag>.<ciphertext> (base64url, AES-256-GCM, HKDF-SHA256 key)"},"A fresh random IV per seal.","apps/web/features/api-key/services/sealed-api-key.ts"),
+    ret("rt","ck","{ ok: true, sealedKey }",{ok:true,sealedKey:SEALED}),
+    ph("Browser keeps only the sealed key","The api-key store persists to sessionStorage, so the key is gone when the tab closes. The plain key never touches browser storage.",[N("ck","useApiKeyStore","sessionStorage · sealed only")],"sealedKey"),
+    local("ck","useApiKeyStore → sessionStorage",{sealedKey:SEALED},"Cleared when the tab closes.",null,{store:{"sessionStorage.sealedKey":SEALED}}),
+    ph("Provider mounts","AppShell renders CopilotKitProvider. headers ride on every runtime request; properties become forwardedProps on every run. includeSchema:false stops ~3,000 tokens of generic A2UI context going out each run.",[N("ui","AppShell","CopilotKitProvider"),N("ck","headers + properties","sealed key · settings · chat catalog")],"router.replace('/')"),
+    act("ui","AppShell mounts CopilotKitProvider",{runtimeUrl:"/api/copilotkit",agentId:"learning",headers:{"x-openai-key-sealed":SEALED},properties:{settings:SETTINGS},a2ui:{catalog:"CHAT_UI_CATALOG",includeSchema:false}},null,"apps/web/components/layout/AppShell/index.tsx",),
+    local("ck","Provider config",null,null,null,{store:{"provider.headers":"x-openai-key-sealed","provider.properties":"{ settings }"}}),
+    ph("Client discovers the runtime","GET /info lists the runtime's agents and whether A2UI is on.",[N("ck","GET /api/copilotkit/info","runtime discovery"),N("rt","CopilotRuntime","agents: learning · a2ui on")],"HTTP GET"),
+    http("GET /api/copilotkit/info",{response:{agents:{learning:{}},a2ui:"enabled"}},"The client discovers the runtime's agents and A2UI support."),
+    ph("Tools and renderers register","All registered once from the app shell, so renderers never unmount while a card is on screen. The welcome screen shows the idle suggestions. No run has happened yet.",[N("ck","Tools · renderers · context","useFrontendTool · useComponent · useRenderTool …"),N("ui","Welcome screen","3 idle suggestions")],"mount"),
+    local("ck","Register tools, renderers, context, suggestions",{useFrontendTool:["setTheme","setLayout","setLearningSettings"],useComponent:["showConceptCard","showComparison","showSteps","showCodeExample"],useHumanInTheLoop:["confirmNewTopic (available only while material or a quiz exists)"],useRenderTool:["research","makeMaterial","simplify","generateQuiz","evaluate","renderSurface","updateBoardSurface","deleteBoardSurface"],useAgentContext:"display (theme, chat mode, view mode, width)",useConfigureSuggestions:"STAGE_SUGGESTIONS[stage]"},"In dev, useAgentEventLog subscribes and prints each AG-UI event as “[ag-ui] +Nms TYPE detail”.",null,{sys:"Welcome! Try: Research photosynthesis · Learn JavaScript closures · Do everything on black holes"}),
+  ],
+  state:[["agent.state","{} until the first STATE_DELTA; readLearningState() falls back to initialLearningState"],["sessionStorage","sealed key only"],["localStorage","settings + layout (theme applied before first paint by an inline script)"]],
+  notes:["QUIZ_SEAL_SECRET and API_KEY_SEAL_SECRET must be set in apps/web/.env or the app cannot seal the key or the quiz.","The OpenAI key is opened only inside the runtime route, per request, with readApiKeyFromRequest."]
+});
+
+const preToWrapper = (msg,o) => { const p = pre(msg,o); return p.slice(0, p.findIndex(s=>s.k==="call"&&s.f==="rt"&&s.t==="wr")+1); };
+const A2_PRE = preToWrapper("Research photosynthesis");
+A2_PRE.splice(A2_PRE.length-1, 0, act("rt","unsealApiKey(header, secret) → undefined",{header:"missing, tampered, or sealed with another secret"},"readApiKeyFromRequest returns undefined; the agent is still built, with no key.","apps/web/features/api-key/services/request-api-key.ts"));
+add({id:"a2-no-key",group:"Setup",code:"A2",title:"Run with a missing or unreadable key",
+  trigger:"The sealed header is missing, tampered, or was sealed with a secret the server no longer has.",
+  summary:"unsealApiKey returns undefined, so the wrapper never builds a model. It emits RUN_STARTED and RUN_ERROR, and explainRunErrors puts a readable assistant message in front of the error.",
+  sees:["Assistant message: “Sorry, that did not work. No OpenAI API key is saved. Enter one on the API key page (/api-key).”"],
+  runs:"1 run", llm:"0 LLM calls",
+  steps:[
+    ...A2_PRE,
+    ph("Wrapper cannot resolve settings","resolveRunSettings needs a key. Without one it returns { ok:false } and no model, inner agent or tools are built.",[N("wr","resolveRunSettings","apiKey undefined → { ok:false }")],"run(input)"),
+    act("wr","resolveRunSettings(settings, undefined) → { ok:false }",{ok:false,error:"No OpenAI API key is saved. Enter one on the API key page (/api-key)."},"No inner agent, no tools.","apps/agent/src/services/llm/run-settings.ts"),
+    ph("Wrapper emits a failed run","The wrapper builds the stream itself: of(RUN_STARTED, RUN_ERROR), piped through explainRunErrors.",[N("wr","of(started, failed)","RUN_STARTED")],"of()"),
+    ev("wr","RUN_STARTED",{threadId:"th_7f3c…",runId:"run_…"},"Built by the wrapper itself."),
+    ph("Error is explained in the chat","explainRunErrors inserts a readable assistant message before the RUN_ERROR, so the chat is never silent.",[N("wr","explainRunErrors","TEXT_MESSAGE_* first"),N("ui","Assistant bubble","Enter a key on /api-key")],"RUN_ERROR"),
+    ev("wr","TEXT_MESSAGE_START",{messageId:"m_err",role:"assistant"},null,"apps/agent/src/services/run-errors.ts"),
+    ev("wr","TEXT_MESSAGE_CONTENT",{messageId:"m_err",delta:"Sorry, that did not work. No OpenAI API key is saved. Enter one on the API key page (/api-key)."}),
+    ev("wr","TEXT_MESSAGE_END",{messageId:"m_err"}),
+    ph("Run fails","RUN_ERROR still follows, so the client marks the run failed; the explanation stays in the chat.",[N("ck","RUN_ERROR","run marked failed")],"SSE"),
+    ev("wr","RUN_ERROR",{message:"No OpenAI API key is saved. Enter one on the API key page (/api-key)."}),
+  ],
+  state:[["agent.state","unchanged"]],
+  notes:["If the browser has no sealed key at all, useAppShell redirects to /api-key before any run, so this path mostly appears after API_KEY_SEAL_SECRET changes."]
+});
+
+/* ── Learning path ── */
+add({id:"b1-chat",group:"Learning path",code:"B1",title:"Plain chat reply",
+  trigger:"“Hi! What can you do?”",
+  summary:"No tool fits, so the Supervisor answers in text. Only text events stream; nothing touches state or the canvas.",
+  sees:["A short assistant reply in the chat","Suggestion pills for the idle stage"],
+  runs:"1 run", llm:"1 LLM call",
+  steps:[
+    ...pre("Hi! What can you do?"),
+    ph("Supervisor answers in text","No tool fits, so the model writes a reply. Text events pass the wrapper untouched: the history does not end with a card tool.",[N("sv","Supervisor LLM","no tool fits → text"),N("ui","Assistant bubble","TEXT_MESSAGE_START · CONTENT×n · END")],"inner.run"),
+    llm("LLM step → text reply",{output:"text"},"Greetings and short answers stay plain (CHAT_UI rules)."),
+    ev("sv","TEXT_MESSAGE_START",{messageId:"m_a1",role:"assistant"}),
+    ev("sv","TEXT_MESSAGE_CONTENT",{messageId:"m_a1",delta:"Hi! I can research a topic, "},"One event per token chunk. The dev event log counts these as “(n streamed)” instead of printing each."),
+    ev("sv","TEXT_MESSAGE_CONTENT",{messageId:"m_a1",delta:"turn it into notes and quiz you. What would you like to learn?"}),
+    ev("sv","TEXT_MESSAGE_END",{messageId:"m_a1"},"muteRepliesAfterCards lets it through: the history does not end with a card tool's success."),
+    ...fin(),
+  ],
+  state:[["state","unchanged; no STATE_DELTA"]],
+  notes:["Text is only muted after a successful card tool (see B2). A plain turn always reaches the chat."]
+});
+
+add({id:"b2-research",group:"Learning path",code:"B2",title:"Research a topic",
+  trigger:"“Research JavaScript closures”",
+  summary:"The Supervisor calls the research server tool. The Research subagent streams its reading as drafts, which the wrapper turns into STATE_DELTA patches so the Research stage fills in live. The result lands in state; any text after it is muted because the chat card is the reply.",
+  sees:["Chat card: “Researching “JavaScript closures”…” → “Research ready: JavaScript closures”","Canvas moves to Research: article, key insight, flashcards and sources fill in as they stream"],
+  runs:"1 run", llm:"2 Supervisor steps + 1 subagent call",
+  steps:[
+    ...pre("Research JavaScript closures for me."),
+    ...toolOpen("tc_r1","research",'{"topic":"JavaScript closures"}',"useRenderTool('research') draws <ToolProgress> with status inProgress: “Researching “JavaScript closures”…” and a Stop button.","research"),
+    ph("Research subagent runs","The tool checks it may replace nothing, searches the web when Tavily is configured, then streams a structured reading from OpenAI.",[N("sub","Research subagent","Tavily → streamText(Output.object)")],"execute"),
+    call("sv","sub","execute research({topic})",{topic:"JavaScript closures"},"needsTopicConfirmation('research', state) is false: no material or quiz exists.","apps/agent/src/services/tools/learning-tools.ts"),
+    act("sub","searchTavily(topic) → up to 5 results",{results:[{title:"Closures - JavaScript | MDN",url:"https://developer.mozilla.org/…",content:"(≤2000 chars)"}]},"Only when TAVILY_API_KEY is set. A failed search falls back to model knowledge with no sources. Sources come from code, so every cited URL was really retrieved.","apps/agent/src/services/subagents/research.ts"),
+    act("sub","streamText(Output.object(ResearchReadingSchema))",{model:"gpt-5.4-mini",schema:"title, summary, keyInsight, keyTerms"},"generateStructured streams partial objects through partialOutputStream.","apps/agent/src/services/subagents/generate-structured.ts"),
+    ph("Drafts stream to the canvas","Every ≥120 ms the partial reading becomes an internal CUSTOM event, which syncStateFromTools turns into a STATE_DELTA on /draft. The Research template re-renders from its data model.",[N("wr","syncStateFromTools","stageDraft → STATE_DELTA /draft"),N("ui","Research stage","A2UI template · live data")],"reportDraft"),
+    call("sub","wr","reportDraft({task:'research', research})",{task:"research",research:{title:"JavaScript closures",summary:"A closure is",keyInsight:"",keyTerms:[],sources:["…"]}},"Throttled to one draft per 120 ms (DRAFT_INTERVAL_MS). Each draft carries everything written so far."),
+    int("wr","CUSTOM learning.stageDraft (internal, not forwarded)",{type:"CUSTOM",name:"learning.stageDraft",value:{task:"research","research":"…"}},"mergeWith(drafts) injects it; syncStateFromTools consumes it and emits a STATE_DELTA instead. The client never sees CUSTOM draft events.","apps/agent/src/services/drafts.ts"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/draft",value:{task:"research",research:{title:"JavaScript closures",summary:"A closure is",keyInsight:"",keyTerms:[],sources:[{title:"Closures - JavaScript | MDN",url:"https://…"}]}}}]},"First draft: the whole object. applyDraft only accepts it while status.running === draft.task."),
+    ev("wr","STATE_DELTA",{delta:[{op:"replace",path:"/draft/research/summary",value:"A closure is a function bundled together with…"},{op:"add",path:"/draft/research/keyTerms/0",value:{term:"Lexical scope",definition:"Scope decided by where code is written."}}]},"Later drafts: fast-json-patch compare() sends only what grew. Repeats every ≥120 ms while the model writes."),
+    a2ui("Research template ← draft data model",[{version:"v0.9",createSurface:{surfaceId:"research",catalogId:"learning-assistant/canvas/v1"}},{version:"v0.9",updateComponents:{surfaceId:"research",components:"RESEARCH_TEMPLATE (ArticleCard, InsightCallout, Flashcards, SourceList…)"}},{version:"v0.9",updateDataModel:{surfaceId:"research",path:"/",value:{research:"…draft…"}}}],"useCanvasSurface sends the fixed template once, then only updateDataModel on every state change. Components read the data through {path:\"/research/…\"} bindings.","apps/web/features/canvas/hooks/use-canvas-surface.ts"),
+    ph("Result comes back","runSubagent returns { ok: true, data }. Tools never throw. The TOOL_CALL_RESULT flips the chat card to done.",[N("sub","Tool result","{ ok:true, data:{ topic, research } }"),N("ui","Chat card","Research ready: JavaScript closures")],"return"),
+    ret("sub","sv","{ ok: true, data: { topic, research } }",{ok:true,data:{topic:"JavaScript closures",research:RESEARCH}},"runSubagent never throws: failures come back as { ok:false, error } (see F1)."),
+    ev("sv","TOOL_CALL_RESULT",{messageId:"m_t1",toolCallId:"tc_r1",role:"tool",content:JSON.stringify({ok:true,data:{topic:"JavaScript closures",research:{title:"JavaScript closures","…":"…"}}})},"The card flips to “Research ready: JavaScript closures”."),
+    ph("Wrapper writes the result","applyToolResult clears later stages, writes the data, moves the stage and stops the task, all as one STATE_DELTA with an `add` per changed key.",[N("wr","applyToolResult","topic · research · stage · status · draft"),N("ui","Research stage","final data model")],"STATE_DELTA"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/topic",value:"JavaScript closures"},{op:"add",path:"/research",value:RESEARCH},{op:"add",path:"/stage",value:"research"},{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]},"SUBAGENT_CLEARS.research = material + quiz keys; already null here, so no ops.","apps/agent/src/services/state-deltas.ts"),
+    a2ui("Research template ← final data model",{version:"v0.9",updateDataModel:{surfaceId:"research",path:"/",value:{research:"RESEARCH"}}}),
+    ...muted(),
+    ...fin(),
+    local("ck","Stage suggestions switch to “research”",{suggestions:["Make learning material","Explain the key insight"]}),
+  ],
+  state:[["stage","idle → research"],["status","{running:\"research\"} → {running:null}"],["topic","\"JavaScript closures\""],["research","{title, summary, keyInsight, keyTerms, sources}"],["draft","null → growing draft → null"]],
+  notes:["STATE_SNAPSHOT/STATE_DELTA from the inner BuiltInAgent (its AGUISendState* tools) are filtered out; only the wrapper writes state.","Autopilot (B11) is this same pipeline three times in one run."]
+});
+
+add({id:"b3-material",group:"Learning path",code:"B3",title:"Make learning material",
+  trigger:"“Turn the research into learning material.”",
+  summary:"makeMaterial reads research from ctx.getState(), streams markdown into /draft, and on success writes /material. The Material stage is a markdown preview/editor, not an A2UI surface.",
+  sees:["Card: “Writing learning material…” → “Learning material ready”","Canvas moves to Learning Material; notes stream in"],
+  runs:"1 run", llm:"2 Supervisor steps + 1 subagent call",
+  start:{...IDLE,stage:"research",topic:"JavaScript closures",research:RESEARCH},
+  steps:[
+    ...pre("Turn the research into learning material.",{state:{...IDLE,stage:"research",topic:"JavaScript closures",research:RESEARCH},sup:supState({stage:"research",topic:"JavaScript closures",research:{title:"JavaScript closures",keyInsight:"A function keeps access…"}})}),
+    ...toolOpen("tc_m1","makeMaterial","{}","<ToolProgress tool=\"makeMaterial\"> “Writing learning material…”","material"),
+    ph("Material subagent writes notes","The tool reads research from the live state; without it, it fails with TOOL_ERRORS.noResearch.",[N("sub","runMakeMaterial","streamText → { markdown }")],"execute"),
+    call("sv","sub","execute makeMaterial()",{guard:"getState().research !== null"},"Without research it returns fail(TOOL_ERRORS.noResearch) (see B13)."),
+    act("sub","runMakeMaterial → streamText(Output.object)",{schema:"{ markdown }",level:"LEVEL_GUIDANCE.beginner"}),
+    ph("Drafts stream to the canvas","The markdown grows in /draft; the Material stage previews it with a streaming note.",[N("wr","STATE_DELTA /draft","{ task:'material', markdown }"),N("ui","Material stage","streaming preview")],"reportDraft"),
+    call("sub","wr","reportDraft({task:'material', markdown})",{task:"material",markdown:"# JavaScript closures\n\n## What a closure is\n…"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/draft",value:{task:"material",markdown:"# JavaScript closures\n\n## What a closure is\nA closure is…"}}]},"Then replace /draft/markdown as it grows. The Material stage shows <StageDraft> with <StreamingNote>."),
+    ph("Result comes back","The result carries the whole markdown; the card flips to done.",[N("sub","Tool result","{ ok:true, data:{ markdown } }"),N("ui","Chat card","Learning material ready")],"return"),
+    ret("sub","sv","{ ok:true, data:{ markdown } }",{ok:true,data:{markdown:MATERIAL.original}}),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_m1",role:"tool",content:"{\"ok\":true,\"data\":{\"markdown\":\"# JavaScript closures…\"}}"}),
+    ph("Wrapper writes the result","material is written as the original view, the stage moves on, and an old quiz would be cleared.",[N("wr","applyToolResult","material · stage · status · draft"),N("ui","Material stage","Preview / Edit")],"STATE_DELTA"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/material",value:MATERIAL},{op:"add",path:"/stage",value:"material"},{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]},"SUBAGENT_CLEARS.makeMaterial = quiz keys, so an old quiz and its results would also get `add … null` ops here."),
+    act("ui","MaterialStage renders markdown (Preview / Edit)",null,"Not A2UI: MarkdownPreview + a textarea. Editing is locked while isRunning."),
+    ...muted(),
+    ...fin(),
+  ],
+  state:[["material","{original, simplified:null, view:\"original\"}"],["stage","research → material"],["quizOutdated","false"]],
+  notes:[]
+});
+
+add({id:"b4-simplify-all",group:"Learning path",code:"B4",title:"Simplify all the material",
+  trigger:"Press “Simplify all” on the Learning Material stage (or say “Simplify my learning material.”)",
+  summary:"The button flushes any pending edit into agent.state, then sends a chat message on the student's behalf. The Supervisor calls simplify({scope:\"all\"}); the result is written as material.simplified and the view switches to Simplified.",
+  sees:["User bubble “Simplify my learning material.”","Card “Simplifying learning material…” → “Learning material simplified”","Canvas toggles to the Simplified view"],
+  runs:"1 run", llm:"2 Supervisor steps + 1 subagent call",
+  start:{...IDLE,stage:"material",topic:"JavaScript closures",research:RESEARCH,material:MATERIAL},
+  steps:[
+    ph("Student presses Simplify all","The button first flushes a pending edit into agent.state so the agent reads what is on screen, then sends a normal chat message.",[N("ui","Simplify all button","useMaterialStage"),N("ck","flush()","pending edit → agent.setState")]),
+    act("ui","Press “Simplify all”",null,"useMaterialStage.handleSimplifyAll","apps/web/features/canvas/hooks/use-material-stage.ts"),
+    local("ck","flush() → agent.setState(applyMaterialEdit(…))",null,"Only if a keystroke is still waiting for its 600 ms save."),
+    ...pre("Simplify my learning material.",{skipUi:true,state:{...IDLE,stage:"material",topic:"JavaScript closures",research:RESEARCH,material:MATERIAL}}),
+    ...toolOpen("tc_s1","simplify",'{"scope":"all"}',"<ToolProgress tool=\"simplify\"> “Simplifying learning material…”","simplify"),
+    ph("Simplify subagent rewrites","The tool rewrites the active view; drafts stream to /draft.",[N("sub","runSimplify","scope all"),N("wr","STATE_DELTA /draft","{ task:'simplify', markdown }")],"execute"),
+    call("sv","sub","execute simplify({scope:'all'})",{text:"getActiveMaterial(material)"}),
+    call("sub","wr","reportDraft({task:'simplify', markdown})",null,"Drafts become /draft deltas; the Material stage previews the rewrite."),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/draft",value:{task:"simplify",markdown:"# Closures, simply\n\nA closure is a function that remembers the variables around it."}}]}),
+    ph("Result comes back","",[N("sub","Tool result","{ ok:true, data:{ scope:'all', markdown } }"),N("ui","Chat card","Learning material simplified")],"return"),
+    ret("sub","sv","{ ok:true, data:{ scope:'all', markdown } }",{ok:true,data:{scope:"all",markdown:"# Closures, simply\n…"}}),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_s1",role:"tool",content:"{\"ok\":true,\"data\":{\"scope\":\"all\",\"markdown\":\"…\"}}"}),
+    ph("Wrapper writes the result","material.simplified is set and the view switches. An existing quiz would be cleared and quizOutdated set.",[N("wr","applyToolResult","material.simplified · view"),N("ui","Material stage","Simplified view")],"STATE_DELTA"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/material",value:{original:MATERIAL.original,simplified:"# Closures, simply\n\nA closure is a function that remembers the variables around it.",view:"simplified"}},{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]},"If a quiz existed, the quiz keys are cleared and /quizOutdated becomes true (the quiz was written from the old text)."),
+    ...muted(),
+    ...fin(),
+  ],
+  state:[["material.simplified","null → markdown"],["material.view","original → simplified"],["quiz…","cleared if present; quizOutdated = true"]],
+  notes:["Original / Simplified toggling afterwards is client-only: setMaterialView → agent.setState, no run (see B7)."]
+});
+
+add({id:"b5-simplify-sel",group:"Learning path",code:"B5",title:"Simplify a selection",
+  trigger:"Edit mode → select a passage → “Simplify selection”",
+  summary:"The selected text is fenced in triple quotes inside a user message. The Supervisor must copy it byte-for-byte into simplify({scope:\"selection\", selection}); the tool checks it still exists, the draft shows the whole text with the passage rewritten, and only that passage is replaced.",
+  sees:["User bubble with the fenced selection","Only that passage changes in the notes"],
+  runs:"1 run", llm:"2 Supervisor steps + 1 subagent call",
+  start:{...IDLE,stage:"material",material:MATERIAL},
+  steps:[
+    ph("Student selects a passage","In Edit mode the textarea selection is kept in local state.",[N("ui","Edit textarea","handleSelect")]),
+    act("ui","Select text in the textarea → handleSelect",{selection:"A closure is a function bundled together with references to its surrounding state."}),
+    ...pre('Simplify only this part of my learning material:\n"""\nA closure is a function bundled together with references to its surrounding state.\n"""',{uiNode:"Simplify selection",ui:"Press “Simplify selection”",uiNote:"flush(), then formatSimplifySelectionMessage(selection) is sent as a user message.",state:{...IDLE,stage:"material",material:MATERIAL}}),
+    ...toolOpen("tc_s2","simplify",'{"scope":"selection","selection":"A closure is a function bundled together…"}',"Card detail “selection”.","simplify"),
+    ph("Tool checks the selection","The selection must still be in the active view, copied exactly.",[N("sub","simplify(selection)","text.includes(selection)")],"execute"),
+    call("sv","sub","execute simplify({scope:'selection', selection})",{checks:["selection given, else TOOL_ERRORS.noSelection","text.includes(selection), else TOOL_ERRORS.selectionNotFound"]},"OUTPUT_NORMALISATION tells the model never to retype or fix the selection."),
+    ph("Drafts stream to the canvas","The draft is the full material with the passage rewritten so far, so the preview never jumps.",[N("wr","STATE_DELTA /draft","full text, passage rewritten")],"reportDraft"),
+    call("sub","wr","reportDraft({task:'simplify', markdown: text.replace(selection, partial)})"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/draft",value:{task:"simplify",markdown:"# JavaScript closures\n\n## What a closure is\nA closure is a function that remembers…"}}]}),
+    ph("Result comes back","",[N("sub","Tool result","{ scope:'selection', selection, markdown }"),N("ui","Chat card","Learning material simplified")],"return"),
+    ret("sub","sv","{ ok:true, data:{ scope:'selection', selection, markdown } }"),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_s2",role:"tool",content:"{\"ok\":true,\"data\":{\"scope\":\"selection\",\"selection\":\"A closure is…\",\"markdown\":\"A closure is a function that remembers…\"}}"}),
+    ph("Wrapper writes the result","replaceSelection writes into the active view only. If the text changed meanwhile, the result fails instead.",[N("wr","replaceSelection","one passage replaced"),N("ui","Material stage","passage updated")],"STATE_DELTA"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/material",value:{original:"# JavaScript closures\n\n## What a closure is\nA closure is a function that remembers the variables around it.\n\n## Why it matters\nIt lets a function keep private data between calls.",simplified:null,view:"original"}},{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]},"“The selected text is no longer in the learning material.” if it vanished."),
+    ...muted(),
+    ...fin(),
+  ],
+  state:[["material.<active view>","passage replaced"]],
+  notes:[]
+});
+
+add({id:"b6-quiz",group:"Learning path",code:"B6",title:"Generate a sealed quiz",
+  trigger:"“Quiz me on my learning material.”",
+  summary:"The Quiz subagent writes questions with answers, but only the public parts reach state. correctIndex and explanations are sealed into answerKeySealed on the server, so no snapshot or delta before Submit contains an answer.",
+  sees:["Card “Writing quiz questions…” → “Quiz ready: 3 questions”","Quiz stage: questions appear one by one, locked, then unlock"],
+  runs:"1 run", llm:"2 Supervisor steps + 1–2 subagent calls",
+  start:{...IDLE,stage:"material",topic:"JavaScript closures",research:RESEARCH,material:MATERIAL},
+  steps:[
+    ...pre("Quiz me on my learning material.",{state:{...IDLE,stage:"material",material:MATERIAL},sup:supState({stage:"material",material:{view:"original",hasSimplified:false,characters:2480}})}),
+    ...toolOpen("tc_q1","generateQuiz","{}","<ToolProgress tool=\"generateQuiz\">","quiz"),
+    ph("Quiz subagent writes questions","The full draft, with answers, exists only in server memory. QUIZ_ATTEMPTS allows one retry.",[N("sub","runQuiz","count = settings.questionCount")],"execute"),
+    call("sv","sub","execute generateQuiz()",{count:"settings.questionCount",guard:"material !== null"}),
+    act("sub","runQuiz (QUIZ_ATTEMPTS = 2)",{draft:{questions:[{concept:"Lexical scope",question:"…",options:["…"],correctIndex:1,explanation:"…"}]}}),
+    ph("Question drafts stream, without answers","QuestionDraftSchema has no answer field. The Quiz stage shows the questions locked.",[N("wr","STATE_DELTA /draft","{ task:'quiz', questions }"),N("ui","Quiz stage","locked draft")],"reportDraft"),
+    call("sub","wr","reportDraft({task:'quiz', questions:[{concept, question, options}]})",{task:"quiz",questions:[{concept:"Lexical scope",question:"Where is a closure's scope decided?",options:["Where it is called","Where it is written"]}]}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/draft",value:{task:"quiz",questions:QS.slice(0,2).map(({concept,question,options})=>({concept,question,options}))}}]},"The Quiz stage renders QUIZ_TEMPLATE with createQuizDraftDataModel (isLocked: true, ids draft-0…)."),
+    ph("Answer key is sealed","createSealedQuiz makes server ids q1…qN, copies the public fields and seals correctIndex + explanations with QUIZ_SEAL_SECRET.",[N("sub","createSealedQuiz","AES-256-GCM · answerKeySealed")],"seal"),
+    act("sub","createSealedQuiz → answerKeys.seal(id, key)",{sealed:{correctIndex:[1,0,3],explanations:["…"]},algo:"AES-256-GCM with QUIZ_SEAL_SECRET"},"Server-made ids; public fields copied field by field.","apps/agent/src/services/answer-key/seal-quiz.ts"),
+    ph("Result comes back","",[N("sub","Tool result","{ ok:true, data:{ quiz } }"),N("ui","Chat card","Quiz ready: 3 questions")],"return"),
+    ret("sub","sv","{ ok:true, data:{ quiz } }",{ok:true,data:{quiz:QUIZ}}),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_q1",role:"tool",content:"{\"ok\":true,\"data\":{\"quiz\":{\"id\":\"8f0c…\",\"questions\":[…],\"answers\":{},\"answerKeySealed\":\"v1.…\",\"submitted\":false}}}"},"formatQuizSize(result) → card “Quiz ready: 3 questions”."),
+    ph("Wrapper writes the quiz","The sealed quiz lands in state and the Quiz template gets its data model.",[N("wr","applyToolResult","quiz · stage · status · draft"),N("ui","Quiz template","unlocked, 0 answered")],"STATE_DELTA"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/quiz",value:QUIZ},{op:"add",path:"/stage",value:"quiz"},{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]},"SUBAGENT_CLEARS.generateQuiz = evaluation, score, feedback, reflection."),
+    a2ui("Quiz template ← data model",[{version:"v0.9",createSurface:{surfaceId:"quiz",catalogId:"learning-assistant/canvas/v1"}},{version:"v0.9",updateComponents:{surfaceId:"quiz",components:"root Stack → questions (template children over /questions) → QuestionCard; actions → QuizActionBar"}},{version:"v0.9",updateDataModel:{surfaceId:"quiz",path:"/",value:{quizId:"8f0c…",questions:[{id:"q1",number:1,concept:"Lexical scope",question:"…",options:["…"],selectedIndex:null,result:null}],answers:{},answeredCount:0,total:3,canSubmit:false,isSubmitted:false,isLocked:false}}}]),
+    ...muted(),
+    ...fin(),
+  ],
+  state:[["quiz","{id, questions (no answers), answers:{}, answerKeySealed, submitted:false}"],["stage","material → quiz"]],
+  notes:["The sealed key is opened in exactly one place: runEvaluation (B8)."]
+});
+
+add({id:"b7-client-only",group:"Learning path",code:"B7",title:"Client-only canvas actions",
+  trigger:"Pick an answer · Retake · switch Original/Simplified · Review link · move between stages",
+  summary:"These never start a run. The canvas writes agent.state locally with agent.setState(); the change reaches the server only inside the next run's RunAgentInput.state.",
+  sees:["Instant UI change, no chat activity"],
+  runs:"0 runs", llm:"0 LLM calls",
+  start:{...IDLE,stage:"quiz",topic:"JavaScript closures",research:RESEARCH,material:{...MATERIAL,simplified:"# Closures, simply\n\nA closure remembers the variables around it."},quiz:QUIZ},
+  steps:[
+    ph("Student picks an answer","The QuestionCard dispatches an A2UI action; the Quiz stage writes it to agent.state and the data model updates.",[N("ui","QuestionCard","select_answer"),N("ck","agent.setState","quiz.answers.q1 = 1")]),
+    act("ui","QuestionCard option clicked → A2UI action",{userAction:{name:"select_answer",surfaceId:"quiz",context:{questionId:"q1",optionIndex:1}}},"The QuestionCard dispatches createSelectAnswerAction; the A2UIProvider hands it to useQuizStage.handleAction. Ignored while agent.isRunning.","apps/web/features/canvas/hooks/use-quiz-stage.ts"),
+    local("ck","agent.setState(selectAnswer(state, choice))",{quiz:{answers:{q1:1}}},"Returns the same state (no write) for a graded quiz, an unknown question or the same option.",null,{ops:[{op:"add",path:"/quiz/answers/q1",value:1}]}),
+    a2ui("updateDataModel (answeredCount, canSubmit)",{version:"v0.9",updateDataModel:{surfaceId:"quiz",path:"/",value:{answeredCount:1,total:3,canSubmit:false,"…":"…"}}},"canSubmit turns true when every question has an answer."),
+    local("ck","agent.setState(selectAnswer(…)) for q2",null,null,null,{ops:[{op:"add",path:"/quiz/answers/q2",value:0}]}),
+    ph("Student presses Retake","Same questions, results cleared, back to the Quiz stage.",[N("ui","QuizActionBar","retake_quiz"),N("ck","agent.setState","answers {} · results null")]),
+    act("ui","Press Retake → retake_quiz",{userAction:{name:"retake_quiz",surfaceId:"quiz"}}),
+    local("ck","agent.setState(retakeQuiz(state))",{quiz:{answers:{},submitted:false},evaluation:null,score:null,feedback:null,reflection:null,stage:"quiz"},"Same questions, results cleared.",null,{ops:[{op:"add",path:"/quiz/answers",value:{}},{op:"add",path:"/quiz/submitted",value:false},{op:"add",path:"/stage",value:"quiz"}]}),
+    ph("Student toggles Original / Simplified","Content is unchanged; simplify and quiz later use the active view.",[N("ui","View toggle","Simplified"),N("ck","agent.setState","material.view")]),
+    act("ui","Toggle Original / Simplified",{view:"simplified"}),
+    local("ck","agent.setState(setMaterialView(state, view))",{material:{view:"simplified"}},"The Supervisor sees material.view next run.",null,{ops:[{op:"add",path:"/material/view",value:"simplified"},{op:"add",path:"/stage",value:"material"}]}),
+    ph("Student follows a Review link","A zustand stage request, not agent state. The canvas opens the stage if it is unlocked.",[N("ui","ReviewLink","review_concept"),N("ck","requestStage('material')","useStageRequestStore")]),
+    act("ui","Feedback “Review Lexical scope” link → review_concept",{userAction:{name:"review_concept",context:{concept:"Lexical scope"}}}),
+    local("ck","useStageRequestStore.requestStage('material')",{request:{stage:"material",id:3}},"useCanvasStage opens the stage if it is unlocked."),
+  ],
+  state:[["quiz.answers","{q1:1, …} (local until next run)"],["server","sees it only in the next RunAgentInput.state"]],
+  notes:["“New questions” on the quiz bar is not client-only: it sends “Give me a new set of quiz questions.” → generateQuiz (B6)."]
+});
+
+const QUIZ_ANSWERED = {...QUIZ,answers:{q1:0,q2:0,q3:3}};
+const SUBMIT_START = {...IDLE,stage:"quiz",topic:"JavaScript closures",research:RESEARCH,material:MATERIAL,quiz:QUIZ_ANSWERED};
+const SUBMIT_HEAD = [
+  ph("Student presses Submit","QuizActionBar's submitAction is an A2UI event whose context is bound to /quizId and /answers. useSubmitQuiz starts a run with it in forwardedProps; no user message is added.",[N("ui","QuizActionBar","submit_quiz + context"),N("ck","useSubmitQuiz","forwardedProps.a2uiAction")]),
+  act("ui","Press Submit on the Quiz surface",{userAction:{name:"submit_quiz",surfaceId:"quiz",sourceComponentId:"actions",context:{quizId:"8f0c…",answers:{q1:0,q2:0,q3:3}}}},"The A2UI renderer resolves the context bindings.","packages/shared/src/a2ui/templates/quiz.json"),
+  local("ck","useSubmitQuiz → copilotkit.runAgent({agent, forwardedProps:{a2uiAction}})",null,"The button, not a message, starts the turn.","apps/web/features/canvas/hooks/use-submit-quiz.ts"),
+  ph("CopilotKit posts the run","The run carries the answers twice: in state.quiz.answers and in forwardedProps.a2uiAction.",[N("ck","POST /agent/learning/run","forwardedProps.a2uiAction")],"runAgent"),
+  http("POST /api/copilotkit/agent/learning/run",{headers:{"x-openai-key-sealed":SEALED},body:{messages:"…history…",state:{"…":"…",quiz:QUIZ_ANSWERED},forwardedProps:{settings:SETTINGS,a2uiAction:{userAction:{name:"submit_quiz",surfaceId:"quiz",context:{quizId:"8f0c…",answers:{q1:0,q2:0,q3:3}}}}}}}),
+  ph("Middleware logs the action","A2UIMiddleware appends a synthetic log_a2ui_event call + result so an LLM would know what was clicked. Here the wrapper grades before any LLM runs.",[N("rt","A2UIMiddleware","processUserAction → log_a2ui_event")],"HTTP POST"),
+  act("rt","A2UIMiddleware.processUserAction",{appended:[{role:"assistant",toolCalls:[{function:{name:"log_a2ui_event",arguments:"{\"name\":\"submit_quiz\",…}"}}]},{role:"tool",content:"User performed action \"submit_quiz\" on surface \"quiz\" (component: actions). Context: {\"quizId\":\"8f0c…\",\"answers\":{…}}"}]}),
+  call("rt","wr","run(input)"),
+  ph("Wrapper grades in code","parseSubmitAction finds the Submit, so runSubmittedQuiz replaces the Supervisor. It opens a synthetic evaluate tool call so the chat shows the usual card.",[N("wr","runSubmittedQuiz","Supervisor not started"),N("ui","Chat card","Evaluating your answers…"),N("wr","status.running","\"evaluate\"")],"run(input)"),
+  act("wr","parseSubmitAction(forwardedProps) → { submission }",{submission:{quizId:"8f0c…",answers:{q1:0,q2:0,q3:3}}},"The LLM never decides whether to grade.","apps/agent/src/utils/submit-action.ts"),
+  ev("wr","RUN_STARTED",{threadId:"th_7f3c…",runId:"run_…"},"Built by runSubmittedQuiz."),
+  ev("wr","TOOL_CALL_START",{toolCallId:"tc_ev1",toolCallName:"evaluate",parentMessageId:"m_syn"},"A synthetic tool call made by the wrapper.","apps/agent/src/services/submit-quiz.ts"),
+  ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/status",value:{running:"evaluate"}}]}),
+  ev("wr","TOOL_CALL_ARGS",{toolCallId:"tc_ev1",delta:"{}"}),
+  ev("wr","TOOL_CALL_END",{toolCallId:"tc_ev1"}),
+  ph("Submission is checked","validateSubmission: the quiz exists, is not graded yet, the quizId matches, and every question has an answer.",[N("sub","validateSubmission","quiz · id · all answered")],"runEvaluateStep"),
+  call("wr","sub","runEvaluateStep(ctx, submission) → validateSubmission",{checks:["quiz exists","not already submitted","submission.quizId === quiz.id","every question answered"]},"The answers are limited to this quiz's question ids.","apps/agent/src/utils/submission.ts"),
+];
+add({id:"b8-submit",group:"Learning path",code:"B8",title:"Submit the quiz (graded in code)",
+  trigger:"Answer every question, press Submit",
+  summary:"The A2UI Submit action rides in forwardedProps. The wrapper grades without the Supervisor: it fakes an evaluate tool call, unseals the answer key, scores in code, then runs two Evaluator calls in parallel (explanations + summary, and a dynamic A2UI Feedback surface). Evaluation, Score and Feedback fill in; the chat gets only the card.",
+  sees:["Card “Evaluating your answers…” → “Evaluation ready” + “Feedback ready”","Evaluation (tiles + mastery bars), Score (tier badge) and Feedback (generated surface) stages"],
+  runs:"1 run", llm:"0 Supervisor calls + 2 parallel Evaluator calls",
+  start:SUBMIT_START,
+  steps:[
+    ...SUBMIT_HEAD,
+    ph("Answer key unsealed, graded in code","The only place the key is opened. Tiers: Master ≥ 80, Practitioner ≥ 50, else Novice.",[N("sub","scoreQuiz","unseal → 2/3 · 67% · Practitioner")],"unseal"),
+    act("sub","answerKeys.unseal(quiz.id, answerKeySealed) → scoreQuiz → getTier",{score:{correct:2,total:3,percent:67,weakestConcept:"Lexical scope",mastery:EVALUATION.mastery},tier:"Practitioner"},null,"apps/agent/src/services/evaluate.ts"),
+    ph("Grade shows at once","The first draft already holds the whole evaluation and score, so Evaluation and Score unlock before any LLM writes.",[N("wr","STATE_DELTA /draft","evaluation + score"),N("ui","Evaluation & Score","unlock immediately")],"reportDraft"),
+    call("sub","wr","reportDraft({task:'evaluate', evaluation, score, feedback:{a2uiOperations:[], summary:''}})"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/draft",value:{task:"evaluate",evaluation:EVALUATION,score:{percent:67,tier:"Practitioner"},feedback:{a2uiOperations:[],summary:""}}}]},"The canvas unlocks Evaluation and Score immediately (isStageBuilding via DRAFT_STAGES)."),
+    ph("Evaluator runs twice in parallel","Explanations + summary and the A2UI Feedback surface stream together into one draft. Each is wrapped in runOrFallback, so a model error never costs the grade.",[N("sub","Explanations + summary","streamText Output.object"),N("sub","Feedback surface","render_a2ui · feedback catalog · 1 retry")],"Promise.all",true),
+    act("sub","Promise.all([runEvaluator, runFeedbackSurface])",{runEvaluator:"streamText Output.object → {explanations[], summary}",runFeedbackSurface:"streamText with toolChoice render_a2ui, schema = Feedback catalog only (FeedbackCard, ConceptChip, ReviewLink, NextStepList)"},"Feedback is validated with runA2UIGenerationWithRecovery (1 retry with the errors)."),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/draft/feedback/a2uiOperations",value:FEEDBACK_OPS},{op:"replace",path:"/draft/feedback/summary",value:"You got 2 of 3. Lexical scope needs another look."}]},"Both streams feed one draft (throttled). The Feedback stage draws the surface as components complete."),
+    ph("Result comes back","The wrapper, not the Supervisor, emits the TOOL_CALL_RESULT. The card flips to done and a Feedback ready card appears.",[N("wr","TOOL_CALL_RESULT","made by the wrapper"),N("ui","Chat card","Evaluation ready · Feedback ready")],"return"),
+    ret("sub","wr","{ ok:true, data:{ answers, evaluation, score, feedback } }",{ok:true,data:{answers:{q1:0,q2:0,q3:3},evaluation:"…",score:{percent:67,tier:"Practitioner"},feedback:{a2uiOperations:FEEDBACK_OPS,summary:"You got 2 of 3…"}}}),
+    ev("wr","TOOL_CALL_RESULT",{messageId:"m_t9",toolCallId:"tc_ev1",role:"tool",content:"{\"ok\":true,\"data\":{\"answers\":{…},\"evaluation\":{…},\"score\":{\"percent\":67,\"tier\":\"Practitioner\"},\"feedback\":{…}}}"},"Card: “Evaluation ready” and <FeedbackReadyCard>."),
+    ph("Wrapper writes the result","One STATE_DELTA fills the quiz answers, evaluation, score and feedback. RUN_FINISHED follows at once: the Supervisor never ran, so there is no text at all.",[N("wr","applyToolResult","quiz · evaluation · score · feedback"),N("ui","Canvas","Evaluation · Score · Feedback")],"STATE_DELTA"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/quiz",value:{...QUIZ_ANSWERED,submitted:true}},{op:"add",path:"/evaluation",value:EVALUATION},{op:"add",path:"/score",value:{percent:67,tier:"Practitioner"}},{op:"add",path:"/feedback",value:{a2uiOperations:FEEDBACK_OPS,summary:"You got 2 of 3. Lexical scope needs another look."}},{op:"add",path:"/stage",value:"evaluation"},{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]}),
+    ev("wr","RUN_FINISHED",{threadId:"th_7f3c…",runId:"run_…"},"ok → of(result, finished)."),
+    a2ui("Evaluation + Score templates, Feedback operations",[{surface:"evaluation",data:{tiles:[{label:"Accuracy",value:"67%"},{label:"Correct answers",value:"2 / 3"},{label:"Weakest concept",value:"Lexical scope",tone:"amber"}],mastery:["…"]}},{surface:"score",data:{percent:67,tier:"Practitioner"}},{surface:"feedback",operations:"feedback.a2uiOperations"}],"If the Feedback operations are invalid, FeedbackSummary shows feedback.summary instead."),
+  ],
+  state:[["quiz","answers written, submitted:true"],["evaluation / score / feedback","filled"],["stage","quiz → evaluation"],["reflection","cleared (SUBAGENT_CLEARS.evaluate)"]],
+  notes:["log_a2ui_event messages are added server-side only; they are not streamed back to the client.","If grading fails, the wrapper does run the Supervisor to explain (F3)."]
+});
+
+add({id:"b9-grade-chat",group:"Learning path",code:"B9",title:"Grade from the chat",
+  trigger:"Answer every question, then type “grade my answers”",
+  summary:"Here the Supervisor decides: it calls the evaluate tool, which runs the same runEvaluateStep with the answers from state (sent by the client in RunAgentInput.state). Everything after that matches B8, plus a muted Supervisor follow-up step.",
+  sees:["Same cards and stages as B8"],
+  runs:"1 run", llm:"2 Supervisor steps + 2 Evaluator calls",
+  start:SUBMIT_START,
+  steps:[
+    ...pre("Grade my answers.",{state:SUBMIT_START,sup:supState({stage:"quiz",quiz:{questionCount:3,answeredCount:3,submitted:false}})}),
+    ...toolOpen("tc_ev2","evaluate","{}","Same “Evaluating your answers…” card.","evaluate"),
+    ph("Grading runs as on Submit","runEvaluateStep with no submission uses quiz.answers from state. Unseal, score, then the two Evaluator calls.",[N("sub","runEvaluateStep","answers from state"),N("wr","STATE_DELTA /draft","evaluation + score")],"execute"),
+    call("sv","sub","execute evaluate() → runEvaluateStep(ctx)",{submission:"undefined → uses quiz.answers from state"},"Prompt rule: evaluate only when answeredCount === questionCount and submitted is false."),
+    act("sub","unseal → score → Evaluator ×2 (as B8)"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/draft",value:{task:"evaluate",evaluation:EVALUATION,score:{percent:67,tier:"Practitioner"},feedback:{a2uiOperations:[],summary:""}}}]}),
+    ph("Result comes back","",[N("sub","Tool result","{ ok:true, data:{…} }"),N("ui","Chat card","Evaluation ready")],"return"),
+    ret("sub","sv","{ ok:true, data:{ answers, evaluation, score, feedback } }"),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_ev2",role:"tool",content:"{\"ok\":true,\"data\":{…}}"}),
+    ph("Wrapper writes the result","",[N("wr","applyToolResult","quiz · evaluation · score · feedback"),N("ui","Canvas","Evaluation stage")],"STATE_DELTA"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/quiz",value:{...QUIZ_ANSWERED,submitted:true}},{op:"add",path:"/evaluation",value:EVALUATION},{op:"add",path:"/score",value:{percent:67,tier:"Practitioner"}},{op:"add",path:"/feedback",value:{a2uiOperations:FEEDBACK_OPS,summary:"You got 2 of 3."}},{op:"add",path:"/stage",value:"evaluation"},{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]}),
+    ...muted(),
+    ...fin(),
+  ],
+  state:[["same as B8",""]],
+  notes:[]
+});
+
+add({id:"b10-reflection",group:"Learning path",code:"B10",title:"Save a reflection",
+  trigger:"Feedback stage → rate 4/5, write a note → “Save reflection & send to chat”",
+  summary:"The form writes state.reflection locally, then posts a “My reflection…” message. The Supervisor recognises the prefix and replies in text with one next step, calling no tool.",
+  sees:["User bubble “My reflection (4/5): …”","A short assistant reply suggesting a next step"],
+  runs:"1 run", llm:"1 LLM call",
+  start:{...SUBMIT_START,quiz:{...QUIZ_ANSWERED,submitted:true},evaluation:EVALUATION,score:{percent:67,tier:"Practitioner"},feedback:{a2uiOperations:FEEDBACK_OPS,summary:"You got 2 of 3."},stage:"feedback"},
+  steps:[
+    ph("Student saves a reflection","The form writes reflection into agent.state, then posts it to the chat.",[N("ui","Reflection form","4/5 + note"),N("ck","agent.setState","reflection")]),
+    act("ui","Save reflection",{rating:4,text:"Loops tripped me up."},"useReflectionForm.handleSubmit","apps/web/features/canvas/hooks/use-reflection-form.ts"),
+    local("ck","agent.setState({...state, reflection})",{reflection:{rating:4,text:"Loops tripped me up."}},null,null,{ops:[{op:"add",path:"/reflection",value:{rating:4,text:"Loops tripped me up."}}]}),
+    ...pre("My reflection (4/5): Loops tripped me up.",{skipUi:true}),
+    ph("Supervisor replies in text","The “My reflection” prefix triggers the Reflection phase: thank in one sentence, respond, suggest one next step. No tool.",[N("sv","Supervisor LLM","Reflection phase · no tool"),N("ui","Assistant bubble","one next step")],"inner.run"),
+    llm("LLM step → text (SPECIAL_PHASES › Reflection)"),
+    ev("sv","TEXT_MESSAGE_START",{messageId:"m_a7",role:"assistant"}),
+    ev("sv","TEXT_MESSAGE_CONTENT",{messageId:"m_a7",delta:"Thanks for reflecting! Loops are the classic closure trap. Want to retake the quiz?"}),
+    ev("sv","TEXT_MESSAGE_END",{messageId:"m_a7"}),
+    ...fin(),
+  ],
+  state:[["reflection","{rating:4, text} (client write)"],["hasReflection","true in the Supervisor's trimmed state"]],
+  notes:[]
+});
+
+add({id:"b11-autopilot",group:"Learning path",code:"B11",title:"Autopilot: whole path in one message",
+  trigger:"“Do the whole flow on black holes: research, learning material and a quiz.”",
+  summary:"One run, three sequential server tools. syncStateFromTools reports each new state back through onStateChange, so makeMaterial and generateQuiz read the research and material written earlier in the same run. The run stops before the quiz is answered.",
+  sees:["Three cards in a row: Research ready → Learning material ready → Quiz ready","The canvas walks Research → Material → Quiz"],
+  runs:"1 run", llm:"4 Supervisor steps + 3 subagent calls",
+  steps:[
+    ...pre("Do the whole flow on black holes: research, learning material and a quiz."),
+    ...toolOpen("tc_a1","research",'{"topic":"black holes"}',"Card 1.","research"),
+    ph("Research runs and lands","As in B2. onStateChange updates the wrapper's `current`, so ctx.getState() now returns the research.",[N("sub","research","drafts → result"),N("wr","STATE_DELTA","topic · research · stage")],"execute"),
+    call("sv","sub","research → streamed drafts…"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/draft",value:{task:"research",research:{title:"Black holes",summary:"A black hole is a region where gravity…",keyInsight:"",keyTerms:[],sources:[]}}}]},"(many draft deltas, as in B2)"),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_a1",role:"tool",content:"{\"ok\":true,…}"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/topic",value:"black holes"},{op:"add",path:"/research",value:{title:"Black holes",summary:"A black hole is a region where gravity is so strong nothing escapes.",keyInsight:"Past the event horizon, every path leads inward.",keyTerms:[{term:"Event horizon"}],sources:[]}},{op:"add",path:"/stage",value:"research"},{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]}),
+    ...toolOpen("tc_a2","makeMaterial","{}","Card 2.","material"),
+    ph("Material reads the new research","getState().research is set within the same run.",[N("sub","makeMaterial","getState().research ✓"),N("wr","STATE_DELTA","material · stage")],"execute"),
+    call("sv","sub","makeMaterial → reads getState().research ✓"),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_a2",role:"tool",content:"{\"ok\":true,…}"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/material",value:{original:"# Black holes\n\n## What they are\n…",simplified:null,view:"original"}},{op:"add",path:"/stage",value:"material"},{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]}),
+    ...toolOpen("tc_a3","generateQuiz","{}","Card 3.","quiz"),
+    ph("Quiz reads the new material","",[N("sub","generateQuiz","sealed answer key"),N("wr","STATE_DELTA","quiz · stage")],"execute"),
+    call("sv","sub","generateQuiz → reads getState().material ✓ → seal"),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_a3",role:"tool",content:"{\"ok\":true,…}"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/quiz",value:{...QUIZ,questions:[{id:"q1",concept:"Event horizon",question:"What escapes past the event horizon?",options:["Light","Nothing","Radio waves","Neutrinos"]}]}},{op:"add",path:"/stage",value:"quiz"},{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]}),
+    ph("Supervisor stops","It never answers the quiz or calls evaluate. Any text is muted.",[N("sv","LLM step 4","stop, no text")],"LLM step"),
+    llm("LLM step 4 → stop (text muted)",null,"Prompt: never answer the quiz or call evaluate for the student."),
+    ...fin(),
+  ],
+  state:[["stage","idle → research → material → quiz"],["quiz","sealed, unanswered"]],
+  notes:["The Supervisor's prompt state (“## Application State”) stays as of run start; it learns about progress from the tool results in its message history.","SUPERVISOR_MAX_STEPS = 8 caps tool calls + replies in one run."]
+});
+
+add({id:"b12-edit-material",group:"Learning path",code:"B12",title:"Edit the learning material by hand",
+  trigger:"Material stage → Edit → type",
+  summary:"Keystrokes stay in a local draft; 600 ms after the last one, applyMaterialEdit writes agent.state. A quiz built from the old text is cleared and quizOutdated is set. No run starts; the Supervisor learns about it on the next turn.",
+  sees:["“Saving…” then saved","Quiz stage locks; an “outdated quiz” banner explains why"],
+  runs:"0 runs", llm:"0 LLM calls",
+  start:{...IDLE,stage:"quiz",topic:"JavaScript closures",research:RESEARCH,material:MATERIAL,quiz:QUIZ},
+  steps:[
+    ph("Student types in Edit","Keystrokes stay in a local draft and a 600 ms timer restarts on each one.",[N("ui","Edit textarea","local draft"),N("ck","setTimeout(flush, 600)","MATERIAL_SAVE_DELAY_MS")]),
+    act("ui","Type in the Edit textarea",{text:"# JavaScript closures (my notes)…"},"Locked while the agent runs, so a server update never races a local edit."),
+    local("ck","setTimeout(flush, 600)"),
+    ph("Edit is written to state","applyMaterialEdit writes the text, clears the quiz and its results, sets quizOutdated and falls back to the Material stage.",[N("ck","applyMaterialEdit","quiz cleared · quizOutdated"),N("ui","Outdated banner","QuizOutdatedBanner")]),
+    local("ck","agent.setState(applyMaterialEdit(state, text))",{material:{original:"…edited…"},quiz:null,evaluation:null,score:null,feedback:null,reflection:null,quizOutdated:true,stage:"material"},"Returns the same state when nothing changed.","apps/web/features/canvas/utils/material-edit.ts",{ops:[{op:"add",path:"/material/original",value:"# JavaScript closures (my notes)\n\nA closure keeps the variables where it was made."},{op:"add",path:"/quiz",value:null},{op:"add",path:"/quizOutdated",value:true},{op:"add",path:"/stage",value:"material"}]}),
+    act("ui","QuizOutdatedBanner shows",{text:"Your learning material changed, so the old quiz and its results were cleared…"}),
+    ph("Next turn carries it","Any later message sends the edited state; the Supervisor sees quizOutdated: true and offers a new quiz when asked.",[N("ck","POST /run","state includes the edit"),N("sv","Supervisor sees","quizOutdated: true")],"next message"),
+    http("POST …/run (state carries the edit)",{body:{state:{material:{original:"…edited…"},quiz:null,quizOutdated:true}}}),
+    call("wr","sv","toSupervisorState → quizOutdated: true",{quizOutdated:true}),
+  ],
+  state:[["material.<active view>","edited text"],["quiz … reflection","null"],["quizOutdated","true (reset by the next research, material or quiz)"]],
+  notes:["Unmount and every Simplify / view switch call flush() first, so a pending edit is never lost."]
+});
+
+add({id:"b13-missing-prereq",group:"Learning path",code:"B13",title:"Ask for a step too early",
+  trigger:"“Quiz me” with no learning material yet",
+  summary:"The Supervisor reads material: null in its state and should answer in text, offering the missing step. If it calls the tool anyway, the tool refuses with a TOOL_ERRORS message, which becomes status.error with a Retry button.",
+  sees:["Expected: a reply like “You need learning material first. Want me to make it?”","Fallback: a failed quiz card, the error on the canvas, and an explanation"],
+  runs:"1 run", llm:"1–2 LLM calls",
+  start:{...IDLE,stage:"research",topic:"JavaScript closures",research:RESEARCH},
+  steps:[
+    ...pre("Quiz me.",{state:{...IDLE,stage:"research",research:RESEARCH},sup:supState({stage:"research",research:{title:"JavaScript closures",keyInsight:"…"}})}),
+    ph("Supervisor sees material: null","RESPONSIBILITIES: check prerequisites, explain what is needed and offer to do it.",[N("sv","Supervisor LLM","prerequisite missing"),N("ui","Assistant bubble","offers the missing step")],"inner.run"),
+    llm("LLM step → text (prerequisite missing)"),
+    ev("sv","TEXT_MESSAGE_START",{messageId:"m_a1",role:"assistant"}),
+    ev("sv","TEXT_MESSAGE_CONTENT",{messageId:"m_a1",delta:"A quiz needs learning material first. Shall I turn your research into notes?"}),
+    ev("sv","TEXT_MESSAGE_END",{messageId:"m_a1"}),
+    ph("Fallback: the tool is called anyway","If the model skips the check, the start marks the task running…",[N("sv","generateQuiz()","prerequisite ignored"),N("wr","status.running","\"quiz\"")],"alternative"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_x",toolCallName:"generateQuiz"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/status",value:{running:"quiz"}}]}),
+    ph("The tool refuses","…and the tool's own guard fails it. The failure is not muted, so the Supervisor explains.",[N("sub","fail(noMaterialForQuiz)","{ ok:false, error }"),N("wr","status.error","failed: \"quiz\" · Retry")],"return"),
+    ret("sub","sv","fail(TOOL_ERRORS.noMaterialForQuiz)",{ok:false,error:"There is no learning material yet, so there is nothing to quiz on. Make learning material first."}),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_x",role:"tool",content:"{\"ok\":false,\"error\":\"There is no learning material yet…\"}"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/status",value:{running:null,error:"There is no learning material yet, so there is nothing to quiz on. Make learning material first.",failed:"quiz"}}]}),
+    ev("sv","TEXT_MESSAGE_CONTENT",{messageId:"m_a2",delta:"I need learning material before I can write a quiz."},"Not muted: the latest card result is a failure."),
+    ...fin(),
+  ],
+  state:[["expected path","unchanged"],["fallback","status.error + status.failed = \"quiz\""]],
+  notes:["Every subagent tool guards its own prerequisite (noResearch, noMaterial, noMaterialForQuiz, noQuiz…), so the model cannot skip a stage."]
+});
+
+/* ── Chat visuals ── */
+add({id:"c1-card",group:"Chat visuals",code:"C1",title:"Fixed chat card (concept, comparison, steps, code)",
+  trigger:"“What is a closure?” (or “let vs const?”, “How does the event loop work?”, “Show me a code example”)",
+  summary:"The four cards are frontend tools registered with useComponent: no handler, followUp:false. The Supervisor calls one, CopilotKit renders the card from the streamed arguments, and the run ends there with no follow-up run.",
+  sees:["A ConceptCard (or Comparison / Steps / CodeExample) in the chat; the canvas does not change"],
+  runs:"1 run", llm:"1 LLM call",
+  steps:[
+    ...pre("What is a closure?"),
+    ph("Supervisor calls a frontend card tool","showConceptCard came from RunAgentInput.tools. The card mounts at TOOL_CALL_START and fills from the streaming args.",[N("sv","showConceptCard","term · definition · example"),N("ui","ConceptCard","renders from partial args")],"inner.run"),
+    llm("LLM step → showConceptCard(term, definition, example)",null,"CHAT_UI table: “What is X?” → concept card."),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_c1",toolCallName:"showConceptCard",parentMessageId:"m_a1"},"Frontend tool: the name came from RunAgentInput.tools."),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_c1",delta:"{\"term\":\"Closure\",\"definition\":\"A function that remembers"}),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_c1",delta:" the variables where it was created.\",\"example\":\"function counter(){ let n = 0; return () => ++n; }\"}"}),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_c1"}),
+    ph("No server result","The AI SDK has no execute for a client tool, so the step stops. closeLostToolCalls skips client tool names, so no fake result is added.",[N("wr","BuiltInAgent step ends","client tool, no execute")],"END"),
+    int("wr","No server execute → BuiltInAgent's step ends"),
+    ...fin(),
+    ph("Card completes on the client","No handler → an empty tool message. followUp:false → no follow-up run. The card is the whole answer.",[N("ck","executeSpecificTool","tool message \"\" · no follow-up"),N("ui","ConceptCard","complete")],"after run"),
+    local("ck","executeSpecificTool: no handler → tool message \"\"",{role:"tool",toolCallId:"tc_c1",content:""},null,"@copilotkit/core › executeSpecificTool"),
+    act("ui","<ConceptCard term definition example> complete"),
+  ],
+  state:[["state","unchanged"],["agent.messages","+ assistant toolCall + empty tool result"]],
+  notes:["Cards are for quick answers; renderSurface (C2) is for anything that mixes parts."]
+});
+
+add({id:"c2-chat-surface",group:"Chat visuals",code:"C2",title:"Dynamic A2UI surface in the chat",
+  trigger:"“Give me a small panel about primitive types”",
+  summary:"renderSurface({target:\"chat\"}) is a server tool. It validates the tree against the chat catalog and returns an a2ui_operations envelope. The runtime's A2UIMiddleware spots the envelope in the TOOL_CALL_RESULT and emits an ACTIVITY_SNAPSHOT, which CopilotChat draws with CHAT_UI_CATALOG.",
+  sees:["“Composing a view” card (hidden when done)","An inline Panel with a paragraph, a table and a callout"],
+  runs:"1 run", llm:"2 Supervisor steps",
+  steps:[
+    ...pre("Give me a small panel about primitive types"),
+    ph("Supervisor composes a chat surface","renderSurface(target \"chat\") with a Panel root and chat components only.",[N("sv","renderSurface","target chat · Panel root"),N("ui","Chat card","Composing a view")],"inner.run"),
+    llm("LLM step → renderSurface(target 'chat', title, components)"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_v1",toolCallName:"renderSurface",parentMessageId:"m_a1"},"A2UIMiddleware records tc_v1 as the outer call."),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_v1",delta:"{\"target\":\"chat\",\"title\":\"Primitive types\",\"components\":[{\"id\":\"root\",\"component\":\"Panel\",…"},"streamBoardDrafts parses it too, but applyBoardDraft returns null for target chat."),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_v1"}),
+    ph("Tree is validated","validateA2UIComponents against CHAT_CATALOG: one root, every child resolved, no cycles, chat-only components. The surface id is the server's.",[N("sub","validateA2UIComponents","chat catalog · assembleOps")],"execute"),
+    call("sv","sub","execute renderSurface",{target:"chat",components:[{id:"root",component:"Panel",title:"Primitive types",children:["s1","t1","c1"]},{id:"s1",component:"Paragraph",text:"JavaScript has seven primitives."},{id:"t1",component:"Table",columns:["Type","Example"],rows:[["string","\"hi\""],["number","42"]]},{id:"c1",component:"Callout",tone:"tip",text:"Primitives are immutable."}]},null,"apps/agent/src/services/tools/surface-tools.ts"),
+    ret("sub","sv","{ a2ui_operations: [...] }",{a2ui_operations:[{version:"v0.9",createSurface:{surfaceId:"chat-5b1e…",catalogId:"learning-assistant/chat/v1"}},{version:"v0.9",updateComponents:{surfaceId:"chat-5b1e…",components:["…"]}}]}),
+    ph("Result carries a2ui_operations","No {surface}, so syncStateFromTools writes nothing.",[N("sv","TOOL_CALL_RESULT","{ a2ui_operations }")],"return"),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_v1",role:"tool",content:"{\"a2ui_operations\":[{\"version\":\"v0.9\",\"createSurface\":{…}},{\"version\":\"v0.9\",\"updateComponents\":{…}}]}"}),
+    ph("Middleware emits the surface","A2UIMiddleware turns the envelope into an ACTIVITY_SNAPSHOT: the only event in this app the middleware creates. CopilotChat draws it inline.",[N("rt","ACTIVITY_SNAPSHOT","a2ui-surface-tc_v1"),N("ui","Inline panel","CHAT_UI_CATALOG")],"tryParseA2UIOperations"),
+    ev("rt","ACTIVITY_SNAPSHOT",{messageId:"a2ui-surface-tc_v1",activityType:"a2ui-surface",content:{a2ui_operations:[{version:"v0.9",createSurface:{surfaceId:"chat-5b1e…",catalogId:"learning-assistant/chat/v1"}},{version:"v0.9",updateComponents:{surfaceId:"chat-5b1e…",components:[{id:"root",component:"Panel",title:"Primitive types",children:["s1","t1","c1"]},{id:"s1",component:"Paragraph",text:"JavaScript has seven primitives."},{id:"t1",component:"Table",columns:["Type","Example"],rows:[["string","\"hi\""],["number","42"]]},{id:"c1",component:"Callout",tone:"tip",text:"Primitives are immutable."}]}}]},replace:true}),
+    a2ui("CopilotChat A2UI activity renderer draws the Panel",{catalog:"CHAT_UI_CATALOG"},"The SurfaceToolCard hides itself for target chat."),
+    ...muted(),
+    ...fin(),
+  ],
+  state:[["state","unchanged"],["chat","+ activity message a2ui-surface-tc_v1"]],
+  notes:["Chat surfaces cannot be edited later; the Supervisor draws a new one instead.","injectA2UITool:false means the generic render_a2ui tool is never offered to the Supervisor."]
+});
+
+add({id:"c3-invalid-surface",group:"Chat visuals",code:"C3",title:"Invalid surface tree, fixed in the same run",
+  trigger:"The model puts a canvas-only component (e.g. Flashcards) in a chat surface, or leaves a child id unresolved",
+  summary:"renderSurface returns { error } with the validation messages instead of operations. No activity is emitted; the error is not muted, so the Supervisor reads it, fixes the tree and calls renderSurface again.",
+  sees:["Nothing for the failed attempt (its card hides)","The corrected panel"],
+  runs:"1 run", llm:"3 Supervisor steps",
+  steps:[
+    ...pre("Show me flashcards about closures here in the chat"),
+    ph("First tree is invalid","Flashcards is a Board component. Validation returns { error } and the middleware emits nothing.",[N("sv","renderSurface","Flashcards in chat"),N("sub","validate","{ error: … }")],"inner.run"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_v1",toolCallName:"renderSurface"}),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_v1",delta:"{\"target\":\"chat\",…\"component\":\"Flashcards\"…}"}),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_v1"}),
+    ret("sub","sv","{ error: 'The surface was not drawn…' }",{error:"The surface was not drawn. Fix these errors and call the tool again:\n- Component \"f1\" uses \"Flashcards\", which is not in catalog learning-assistant/chat/v1"}),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_v1",role:"tool",content:"{\"error\":\"The surface was not drawn. Fix these errors and call the tool again:\\n- …\"}"},"No a2ui_operations → the middleware emits nothing. Not muted."),
+    ph("Supervisor fixes the tree","The error is in its history, so the next LLM step rebuilds the tree with chat components.",[N("sv","LLM step 2","chat components only")],"error"),
+    llm("LLM step 2 → renderSurface again with chat components only"),
+    ph("Retry succeeds","",[N("sv","renderSurface","valid tree"),N("rt","ACTIVITY_SNAPSHOT","a2ui-surface-tc_v2")],"retry"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_v2",toolCallName:"renderSurface"}),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_v2",delta:"{\"target\":\"chat\",\"title\":\"Closure flashcards\",…}"}),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_v2"}),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_v2",role:"tool",content:"{\"a2ui_operations\":[…]}"}),
+    ev("rt","ACTIVITY_SNAPSHOT",{messageId:"a2ui-surface-tc_v2",activityType:"a2ui-surface",content:{a2ui_operations:[{version:"v0.9",createSurface:{surfaceId:"chat-77a0…",catalogId:"learning-assistant/chat/v1"}},{version:"v0.9",updateComponents:{surfaceId:"chat-77a0…",components:[{id:"root",component:"Panel",title:"Closure flashcards",children:["b1"]},{id:"b1",component:"BulletList",items:["Closure → a function + its captured variables","Lexical scope → decided where code is written"]}]}}]},replace:true}),
+    ...fin(),
+  ],
+  state:[["state","unchanged"]],
+  notes:["The same loop applies to Board views (renderSurface target canvas, updateBoardSurface)."]
+});
+
+/* ── Board ── */
+add({id:"d1-board-create",group:"Board",code:"D1",title:"Create a Board view",
+  trigger:"“Put a cheat sheet of Git commands on the canvas”",
+  summary:"Any message that mentions the board or canvas is a Board request: no research. While the Supervisor writes renderSurface({target:\"canvas\"}) arguments, streamBoardDrafts parses the partial JSON and syncStateFromTools turns it into /boardDraft deltas, so the view draws as it is written. The result {surface} is appended to state.board.",
+  sees:["Card “Composing a Board view” → “Added to the Board: Git cheat sheet”","Canvas switches to the Board tab; the view builds up live"],
+  runs:"1 run", llm:"2 Supervisor steps",
+  steps:[
+    ...pre("Put a cheat sheet of Git commands on the canvas"),
+    ph("Supervisor writes a Board view","renderSurface(target \"canvas\") with a Stack root; Board components are allowed.",[N("sv","renderSurface","target canvas · Stack root"),N("ui","Chat card","Composing a Board view")],"inner.run"),
+    llm("LLM step → renderSurface(target 'canvas')"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_b1",toolCallName:"renderSurface",parentMessageId:"m_a1"},"streamBoardDrafts starts buffering this call's args."),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_b1",delta:"{\"target\":\"canvas\",\"title\":\"Git cheat sheet\",\"components\":[{\"id\":\"root\",\"component\":\"Stack\",\"children\":[\"cols\"]},"}),
+    ph("Arguments are parsed as they stream","parsePartialJson every ≥120 ms → internal learning.boardDraft → STATE_DELTA /boardDraft. The Board tab opens and draws the complete components so far.",[N("wr","streamBoardDrafts","partial JSON → /boardDraft"),N("ui","Board tab","draft draws live")],"TOOL_CALL_ARGS"),
+    int("wr","CUSTOM learning.boardDraft (internal)",{type:"CUSTOM",name:"learning.boardDraft",value:{toolCallId:"tc_b1",toolCallName:"renderSurface",args:{target:"canvas",title:"Git cheat sheet",components:[{id:"root",component:"Stack",children:["cols"]}]}}},null,"apps/agent/src/services/drafts.ts › streamBoardDrafts"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/boardDraft",value:{id:"board-draft-tc_b1",title:"Git cheat sheet",operations:[{version:"v0.9",createSurface:{surfaceId:"board-draft-tc_b1",catalogId:"learning-assistant/board/v1"}},{version:"v0.9",updateComponents:{surfaceId:"board-draft-tc_b1",components:[{id:"root",component:"Stack",children:["cols"]}]}}]}}]},"applyBoardDraft: only complete components and only once there is a title."),
+    a2ui("BoardDraftSurface draws the draft",{catalog:"BOARD_CATALOG"}),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_b1",delta:"…{\"id\":\"c1\",\"component\":\"CodeBlock\",\"language\":\"bash\",\"code\":\"git switch -c feature\"}…]}"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/boardDraft/operations/1/updateComponents/components/1",value:{id:"c1",component:"CodeBlock",language:"bash",code:"git switch -c feature"}}]}),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_b1"}),
+    ph("Tree is validated","Against BOARD_CATALOG. The view gets a server id and revision 1. No a2ui_operations key, so the middleware leaves it out of the chat.",[N("sub","validate (board catalog)","{ surface: { id, revision: 1 } }")],"execute"),
+    call("sv","sub","execute renderSurface → validate vs BOARD_CATALOG"),
+    ret("sub","sv","{ surface: { id, title, operations, revision: 1 } }",{surface:BOARD_VIEW}),
+    ph("Result carries { surface }","",[N("sv","TOOL_CALL_RESULT","{ surface }"),N("ui","Chat card","Added to the Board: Git cheat sheet")],"return"),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_b1",role:"tool",content:"{\"surface\":{\"id\":\"board-91d2…\",\"title\":\"Git cheat sheet\",\"operations\":[…],\"revision\":1}}"}),
+    ph("Wrapper adds it to the Board","applySurfaceResult appends it as newest (max 8) and clears the draft.",[N("wr","applySurfaceResult","board + [view] · boardDraft null"),N("ui","BoardSurface","processMessages(operations)")],"STATE_DELTA"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/board",value:[BOARD_VIEW]},{op:"add",path:"/boardDraft",value:null}]}),
+    a2ui("BoardSurface → useBoardSurface.processMessages(operations)"),
+    ...muted(),
+    ...fin(),
+  ],
+  state:[["board","+ {id:\"board-…\", title, operations, revision:1}"],["boardDraft","null → draft → null"]],
+  notes:["Stages are untouched: the Board lives beside the learning path.","If the run ends with a half-written view, interruptTask clears /boardDraft."]
+});
+
+const BOARD_START = {...IDLE,board:[BOARD_VIEW]};
+add({id:"d2-board-edit",group:"Board",code:"D2",title:"Edit a Board view",
+  trigger:"“Add a tip about git stash to the Git cheat sheet”",
+  summary:"The Supervisor's state lists Board views by id and title only, so it first calls readBoardSurface to get the components, then updateBoardSurface with the whole revised list. The draft reuses the view's id; the result bumps revision and moves the view to the newest slot.",
+  sees:["No card for the read","Card “Updating a Board view” → “Board view updated: Git cheat sheet”","The view redraws in place"],
+  runs:"1 run", llm:"3 Supervisor steps",
+  start:BOARD_START,
+  steps:[
+    ...pre("Add a tip about git stash to the Git cheat sheet",{state:BOARD_START,sup:supState({board:[{id:"board-91d2…",title:"Git cheat sheet"}]})}),
+    ph("Supervisor reads the view","Its state lists views by id and title only. readBoardSurface has no card and changes nothing.",[N("sv","readBoardSurface","surfaceId"),N("sub","Tool result","{ surfaceId, title, components }")],"inner.run"),
+    llm("LLM step 1 → readBoardSurface(surfaceId)"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_rd",toolCallName:"readBoardSurface"},"No renderer and not a card tool."),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_rd",delta:"{\"surfaceId\":\"board-91d2…\"}"}),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_rd"}),
+    ret("sub","sv","{ surfaceId, title, components }",{surfaceId:"board-91d2…",title:"Git cheat sheet",components:BOARD_VIEW.operations[1].updateComponents.components}),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_rd",role:"tool",content:"{\"surfaceId\":\"board-91d2…\",\"title\":\"Git cheat sheet\",\"components\":[…]}"}),
+    ph("Supervisor writes the revision","updateBoardSurface with the whole revised list. The Board draft reuses the view's id.",[N("sv","updateBoardSurface","full component list"),N("wr","STATE_DELTA /boardDraft","same id"),N("ui","Chat card","Updating a Board view")],"LLM step 2"),
+    llm("LLM step 2 → updateBoardSurface(surfaceId, title, components)"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_up",toolCallName:"updateBoardSurface"}),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_up",delta:"{\"surfaceId\":\"board-91d2…\",\"title\":\"Git cheat sheet\",\"components\":[…]"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/boardDraft",value:{id:"board-91d2…",title:"Git cheat sheet",operations:BOARD_VIEW.operations}}]}),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_up"}),
+    ph("Revision 2 lands","Always a full create, never an A2UI update. The view moves to the newest slot and the client redraws it.",[N("sub","Tool result","{ surface, revision: 2 }"),N("wr","applySurfaceResult","board: moved to newest"),N("ui","Chat card","Board view updated")],"return"),
+    ret("sub","sv","{ surface: { id same, revision: 2 } }",{surface:{...BOARD_VIEW,revision:2}}),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_up",role:"tool",content:"{\"surface\":{\"id\":\"board-91d2…\",\"title\":\"Git cheat sheet\",\"revision\":2}}"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/board",value:[{...BOARD_VIEW,revision:2}]},{op:"add",path:"/boardDraft",value:null}]}),
+    ...fin(),
+  ],
+  state:[["board[i]","replaced, revision 1 → 2, moved to newest"]],
+  notes:["“Make a Docker cheat sheet” next to a Git one is a new view (D1), not an edit. When unsure, the prompt prefers a new view: it loses nothing."]
+});
+
+const BOARD_TWO = {...IDLE,board:[BOARD_VIEW,{id:"board-44aa…",title:"IPA symbols",operations:[],revision:1}]};
+add({id:"d3-board-delete",group:"Board",code:"D3",title:"Delete views or clear the Board",
+  trigger:"“Clear the board” / “Delete the cheat sheet”",
+  summary:"deleteBoardSurface({surfaceIds}) returns { removed:[{id,title}] }; syncStateFromTools filters them out of state.board. The chat card announces it; the Board never draws an announcement.",
+  sees:["Card “Removed from the Board: Git cheat sheet, IPA symbols”","Empty Board"],
+  runs:"1 run", llm:"2 Supervisor steps",
+  start:BOARD_TWO,
+  steps:[
+    ...pre("Clear the board",{state:BOARD_TWO,sup:supState({board:[{id:"board-91d2…",title:"Git cheat sheet"},{id:"board-44aa…",title:"IPA symbols"}]})}),
+    ph("Supervisor deletes the views","All ids from “board” to clear it.",[N("sv","deleteBoardSurface","surfaceIds: [2]"),N("ui","Chat card","Removing from the Board")],"inner.run"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_del",toolCallName:"deleteBoardSurface"}),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_del",delta:"{\"surfaceIds\":[\"board-91d2…\",\"board-44aa…\"]}"}),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_del"}),
+    ph("Board shrinks","applyRemovalResult filters the removed ids out of state.board. The card lists what went.",[N("sub","Tool result","{ removed: [...] }"),N("wr","applyRemovalResult","board: []"),N("ui","Chat card","Removed from the Board")],"return"),
+    ret("sub","sv","{ removed: [...] }",{removed:[{id:"board-91d2…",title:"Git cheat sheet"},{id:"board-44aa…",title:"IPA symbols"}]},"If none match, { error } lists what exists."),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_del",role:"tool",content:"{\"removed\":[{\"id\":\"board-91d2…\",\"title\":\"Git cheat sheet\"},{\"id\":\"board-44aa…\",\"title\":\"IPA symbols\"}]}"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/board",value:[]}]}),
+    ...muted(),
+    ...fin(),
+  ],
+  state:[["board","[…] → []"]],
+  notes:["Removing part of a view is an edit (D2), not a delete."]
+});
+
+/* ── HITL & client tools ── */
+const NT_STATE = {...IDLE,stage:"material",topic:"JavaScript closures",research:RESEARCH,material:MATERIAL};
+add({id:"e1-new-topic-confirm",group:"Human in the loop",code:"E1",title:"New topic → Start new topic",
+  trigger:"Material exists for “JavaScript closures”; student says “Research black holes”, then presses Start new topic",
+  summary:"confirmNewTopic is a useHumanInTheLoop tool, offered only while material or a quiz exists. Run 1 ends on the tool call and the chat shows a card. Confirm clears agent.state on the client, then respond() adds the tool result and CopilotKit starts run 2, where research now passes its guard.",
+  sees:["Card asking to switch from “JavaScript closures” to “black holes”","After Confirm: canvas clears, then a normal research run"],
+  runs:"2 runs", llm:"1 + 2 Supervisor steps",
+  start:NT_STATE,
+  steps:[
+    ...pre("Research black holes",{state:NT_STATE,tools:[...FE_TOOLS,"confirmNewTopic"],sup:supState({stage:"material",topic:"JavaScript closures",material:{view:"original",hasSimplified:false,characters:2480}})}),
+    ph("Supervisor asks first","Material exists, so the prompt routes to confirmNewTopic. If it calls research first, research refuses with requires:\"confirmNewTopic\" and changes nothing.",[N("sv","confirmNewTopic","HITL frontend tool"),N("ui","NewTopicCard","Start new topic · Keep")],"inner.run"),
+    llm("LLM step → confirmNewTopic({topic})"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_nt",toolCallName:"confirmNewTopic",parentMessageId:"m_a1"},"useHumanInTheLoop renders <NewTopicCard>."),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_nt",delta:"{\"topic\":\"black holes\"}"}),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_nt"}),
+    ...fin("Run 1 ends: a client tool has no server result. The card now has respond().","Run 1 ends"),
+    ph("Student confirms","The card clears agent.state first, then answers the tool call. The chat history stays.",[N("ui","Start new topic","useNewTopicCard"),N("ck","agent.setState(initial)","canvas clears"),N("ck","respond(decision)","{ confirmed: true }")],"click"),
+    act("ui","Student presses “Start new topic”",null,"useNewTopicCard.answer(true); answers once.","apps/web/features/chat/hooks/use-new-topic-card.ts"),
+    local("ck","agent.setState(initialLearningState)",IDLE,"Every stage cleared on the client first.",null,{ops:resetOps()}),
+    local("ck","respond(JSON decision) → tool message",{role:"tool",toolCallId:"tc_nt",content:"{\"confirmed\":true,\"instruction\":\"The student confirmed. The canvas is cleared; call research with topic \\\"black holes\\\" now.\"}"},"followUp defaults true → CopilotKit starts run 2.",null,{hitl:"confirm"}),
+    ph("Follow-up run starts","Run 2 carries the tool result and the empty state. muteRepliesAfterCards starts muted: a confirmed decision is a card success.",[N("ck","POST /run","run 2 · state = initial"),N("wr","muted from start","confirmed: true")],"follow-up"),
+    http("POST …/run (state = initial, last message = tool result)",{body:{messages:["…",{role:"assistant",toolCalls:[{id:"tc_nt",function:{name:"confirmNewTopic"}}]},{role:"tool",toolCallId:"tc_nt",content:"{\"confirmed\":true,…}"}],state:IDLE}}),
+    call("rt","wr","run(input)"),
+    ev("sv","RUN_STARTED",{threadId:"th_7f3c…",runId:"run_2"}),
+    ...toolOpen("tc_r2","research",'{"topic":"black holes"}',"Research card for black holes.","research"),
+    ph("Research passes the guard","needsTopicConfirmation is false now that the state is empty.",[N("sub","research","state was cleared"),N("wr","STATE_DELTA","topic · research · stage")],"execute"),
+    call("sv","sub","research → needsTopicConfirmation = false → runs"),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_r2",role:"tool",content:"{\"ok\":true,…}"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/topic",value:"black holes"},{op:"add",path:"/research",value:{title:"Black holes",summary:"A black hole is a region where gravity is so strong nothing escapes.",keyInsight:"Past the event horizon, every path leads inward.",keyTerms:[],sources:[]}},{op:"add",path:"/stage",value:"research"},{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]}),
+    ...fin(null,"Run 2 ends"),
+  ],
+  state:[["run 1","unchanged on the server"],["client","reset to initialLearningState before run 2"],["run 2","topic = black holes, research filled"]],
+  notes:["The research guard is the real enforcement: “The model alone cannot be trusted to ask before replacing work.”"]
+});
+
+add({id:"e2-new-topic-keep",group:"Human in the loop",code:"E2",title:"New topic → Keep current topic",
+  trigger:"Same as E1, but the student presses Keep current topic",
+  summary:"The card answers { confirmed:false, instruction }. Run 2 would normally start muted after a card tool, but muteRepliesAfterCards makes an exception for a kept topic, so the Supervisor's question about what to do next reaches the chat.",
+  sees:["Card shows the topic was kept","Assistant asks what to do next","No research, canvas unchanged"],
+  runs:"2 runs", llm:"1 + 1 Supervisor steps",
+  start:NT_STATE,
+  steps:[
+    ...pre("Research volcanoes",{state:NT_STATE,tools:[...FE_TOOLS,"confirmNewTopic"]}),
+    ph("Supervisor asks first","",[N("sv","confirmNewTopic","HITL frontend tool"),N("ui","NewTopicCard","Start new topic · Keep")],"inner.run"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_nt",toolCallName:"confirmNewTopic"}),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_nt",delta:"{\"topic\":\"volcanoes\"}"}),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_nt"}),
+    ...fin("Run 1 ends on the HITL call.","Run 1 ends"),
+    ph("Student keeps the topic","No setState: nothing is cleared. respond() answers with confirmed:false.",[N("ui","Keep current topic","useNewTopicCard"),N("ck","respond(decision)","{ confirmed: false }")],"click"),
+    act("ui","Student presses “Keep current topic”"),
+    local("ck","respond(JSON decision)",{confirmed:false,instruction:"The student kept working on \"JavaScript closures\". Do not call research; ask what they want to do next with it."},null,null,{hitl:"keep"}),
+    ph("Follow-up run starts unmuted","isKeptTopic: a confirmNewTopic result with confirmed:false is the one card success that does not mute the reply.",[N("ck","POST /run","run 2"),N("wr","muteRepliesAfterCards","isKeptTopic → not muted")],"follow-up"),
+    http("POST …/run (last message = confirmNewTopic result)"),
+    ev("sv","RUN_STARTED",{runId:"run_2"}),
+    int("wr","muteRepliesAfterCards starts unmuted",{mutedAtStart:false,why:"isKeptTopic: confirmNewTopic result with confirmed:false"},"Any other successful card result would mute the reply.","apps/agent/src/services/card-replies.ts"),
+    ph("Supervisor asks what's next","",[N("sv","Supervisor LLM","no research"),N("ui","Assistant bubble","What next?")],"inner.run"),
+    llm("LLM step → text"),
+    ev("sv","TEXT_MESSAGE_START",{messageId:"m_a2",role:"assistant"}),
+    ev("sv","TEXT_MESSAGE_CONTENT",{messageId:"m_a2",delta:"OK, we'll stay on JavaScript closures. What would you like to do next?"}),
+    ev("sv","TEXT_MESSAGE_END",{messageId:"m_a2"}),
+    ...fin(null,"Run 2 ends"),
+  ],
+  state:[["state","unchanged"]],
+  notes:["Fixed: before, this reply was always muted because confirmNewTopic is a card tool. card-replies.test.ts covers both decisions."]
+});
+
+add({id:"e3-frontend-tool",group:"Human in the loop",code:"E3",title:"Settings, theme or layout via chat",
+  trigger:"“Switch to dark mode” · “Use 8 questions” · “Pop out the chat”",
+  summary:"setTheme, setLayout and setLearningSettings are useFrontendTool tools with handlers. Run 1 ends on the call; the browser runs the handler (zustand store → localStorage), inserts the result, and a follow-up run 2 starts. Run 2's reply is muted, so it is a silent round trip.",
+  sees:["A small display card “dark” in the chat","Theme switches instantly"],
+  runs:"2 runs", llm:"1 + 1 Supervisor steps",
+  steps:[
+    ...pre("Switch to dark mode"),
+    ph("Supervisor calls setTheme","It checks the display context first and answers in text if dark is already on screen.",[N("sv","setTheme","{ theme: 'dark' }"),N("ui","Display card","dark")],"inner.run"),
+    llm("LLM step → setTheme({theme:'dark'})"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_th",toolCallName:"setTheme"}),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_th",delta:"{\"theme\":\"dark\"}"}),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_th"}),
+    ...fin("Run 1 ends: client tool.","Run 1 ends"),
+    ph("Handler runs in the browser","The zustand settings store persists to localStorage; the result text is inserted as the tool message.",[N("ck","setTheme('dark')","store → localStorage"),N("ck","tool message","followUp → run 2")],"after run"),
+    local("ck","handler: setTheme('dark') → describeTheme(…)",{result:"The theme is now dark."},null,"apps/web/features/settings/hooks/use-theme-tool.tsx"),
+    local("ck","tool message inserted; followUp → run 2",{role:"tool",toolCallId:"tc_th",content:"The theme is now dark."}),
+    ph("Follow-up run, reply muted","setTheme is a card tool and a plain-text result counts as success, so run 2's reply is dropped.",[N("ck","POST /run","run 2"),N("wr","muteRepliesAfterCards","muted")],"follow-up"),
+    http("POST …/run (context now says themeOnScreen: dark)"),
+    ev("sv","RUN_STARTED",{runId:"run_2"}),
+    llm("LLM step → “Done, dark mode is on.”"),
+    int("wr","Reply muted"),
+    ...fin(null,"Run 2 ends"),
+  ],
+  state:[["agent state","unchanged"],["settings store","theme / questionCount / learningLevel (sent in forwardedProps next run)"]],
+  notes:["Settings apply to the next research, material or quiz; nothing is regenerated."]
+});
+
+/* ── Failures & control ── */
+add({id:"f1-tool-failure",group:"Failures & control",code:"F1",title:"Subagent fails → Retry",
+  trigger:"OpenAI returns 429 while research is streaming",
+  summary:"runSubagent catches the error and returns { ok:false, error } with plain words. The wrapper writes status.error and status.failed; the canvas shows the error and a Retry button; the Supervisor's explanation is not muted. Retry sends a canned chat message for that task.",
+  sees:["Card “Research failed”","Stage error box with Retry","Assistant explains what to do"],
+  runs:"1 run (+1 on Retry)", llm:"2 Supervisor steps",
+  steps:[
+    ...pre("Research photosynthesis"),
+    ...toolOpen("tc_r1","research",'{"topic":"photosynthesis"}',"Researching…","research"),
+    ph("OpenAI rejects the call","formatOpenAIError maps the status to words the student can act on.",[N("sub","OpenAI → 429","rate limit")],"execute"),
+    call("sv","sub","execute research"),
+    act("sub","OpenAI → 429 rate limit",{status:429}),
+    ph("Tool returns a failure","runSubagent never throws.",[N("sub","fail(…)","Research failed: …"),N("ui","Chat card","Research failed")],"return"),
+    ret("sub","sv","fail('Research failed: …')",{ok:false,error:"Research failed: OpenAI rate limit or quota reached. Wait a moment or check your plan, then try again."}),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_r1",role:"tool",content:"{\"ok\":false,\"error\":\"Research failed: OpenAI rate limit or quota reached…\"}"}),
+    ph("Wrapper records the error","createFailureUpdate keeps the rest of the state.",[N("wr","status.error","failed: \"research\""),N("ui","Stage error","Retry button")],"STATE_DELTA"),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/status",value:{running:null,error:"Research failed: OpenAI rate limit or quota reached. Wait a moment, then try again.",failed:"research"}},{op:"add",path:"/draft",value:null}]}),
+    ph("Supervisor explains","Not muted: the latest card result is a failure.",[N("sv","Supervisor LLM","explains the error"),N("ui","Assistant bubble","press Retry")],"LLM step 2"),
+    llm("LLM step 2 → explanation"),
+    ev("sv","TEXT_MESSAGE_START",{messageId:"m_a2",role:"assistant"}),
+    ev("sv","TEXT_MESSAGE_CONTENT",{messageId:"m_a2",delta:"The research hit OpenAI's rate limit. Give it a minute, then press Retry."}),
+    ev("sv","TEXT_MESSAGE_END",{messageId:"m_a2"}),
+    ...fin(),
+    ph("Student presses Retry","getRetryAction sends RETRY_MESSAGES[failed] as a chat message. For evaluate it re-submits the quiz instead.",[N("ui","Retry","useStageRetry"),N("ck","sendMessage","“Please try the research again.”")],"click"),
+    act("ui","Press Retry on the stage"),
+    local("ck","sendMessage(RETRY_MESSAGES.research)",{content:"Please try the research again."},null,null,{say:"Please try the research again."}),
+  ],
+  state:[["status","{running:null, error, failed:\"research\"}"]],
+  notes:["If a run ends while a task is still marked running, interruptTask writes “The <task> step did not finish.” so no skeleton stays forever."]
+});
+
+add({id:"f2-stop",group:"Failures & control",code:"F2",title:"Stop a running step",
+  trigger:"Press Stop on a running tool card",
+  summary:"copilotkit.stopAgent aborts the client run and POSTs /agent/learning/stop/<threadId>. The runtime runner calls LearningSupervisorAgent.abortRun, which aborts the shared AbortSignal. The subagent's OpenAI stream throws, runSubagent returns the stopped error, and the state shows stopped (no Retry, no error).",
+  sees:["Card “Research stopped”","Stage returns to its previous content, no error box"],
+  runs:"1 run (aborted)", llm:"—",
+  steps:[
+    ph("Research is running","(As in B2.)",[N("ui","Chat card","Researching… · Stop"),N("wr","status.running","\"research\"")]),
+    local("ck","Run in progress",null,null,null,{say:"Research photosynthesis"}),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_r1",toolCallName:"research"}),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_r1",delta:"{\"topic\":\"photosynthesis\"}"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/status",value:{running:"research"}}]}),
+    ph("Student presses Stop","",[N("ui","Stop","useToolProgress"),N("ck","stopAgent","agent.abortRun()")],"click"),
+    act("ui","Press Stop on <ToolProgress>"),
+    local("ck","copilotkit.stopAgent({agent}) → agent.abortRun()",null,"Aborts the local run and sends the stop request.","@copilotkit/core › ProxiedCopilotRuntimeAgent.abortRun"),
+    ph("Stop reaches the server","The runner calls abortRun, which aborts the AbortSignal every subagent call shares.",[N("rt","POST /stop/:threadId","runner.stop"),N("wr","abortRun()","shared AbortSignal")],"HTTP POST"),
+    http("POST /api/copilotkit/agent/learning/stop/th_7f3c…",{headers:{"x-openai-key-sealed":SEALED}}),
+    call("rt","wr","runner.stop({threadId}) → agent.abortRun()"),
+    ph("Subagent aborts","runSubagent checks signal.aborted first and returns the stopped error.",[N("sub","fail(stopped)","The student stopped this step.")],"abort"),
+    act("sub","OpenAI stream aborted → throws"),
+    ret("sub","sv","fail(TOOL_ERRORS.stopped)",{ok:false,error:"The student stopped this step."}),
+    ph("Stopped, not failed","createStoppedUpdate: no error and no failed, so no Retry button.",[N("wr","status { running:null }","no error"),N("ui","Chat card","Research stopped")],"STATE_DELTA"),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_r1",role:"tool",content:"{\"ok\":false,\"error\":\"The student stopped this step.\"}"},"If the inner run ended first, closeLostToolCalls adds this same stopped result."),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]}),
+    ...fin(),
+  ],
+  state:[["status","{running:null}"],["draft","null (partial output discarded)"]],
+  notes:["If the client had already dropped the stream, the next run's repairToolHistory gives any unanswered tool call a failure result so the history stays valid."]
+});
+
+add({id:"f3-submit-failure",group:"Failures & control",code:"F3",title:"Submit fails → Supervisor explains",
+  trigger:"Submit when grading cannot run: the quiz was replaced (stale quizId), or the answer key cannot be unsealed (QUIZ_SEAL_SECRET changed)",
+  summary:"runSubmittedQuiz emits the failed result, then starts the Supervisor with the synthetic evaluate call and its result appended to the history. Its RUN_STARTED is dropped because the run already started; its explanation streams to the chat.",
+  sees:["Card “Evaluation failed”","Error + Retry on the Evaluation stage","An explanation in the chat"],
+  runs:"1 run", llm:"1 Supervisor step",
+  start:SUBMIT_START,
+  steps:[
+    ...SUBMIT_HEAD,
+    ph("Grading fails","validateSubmission finds a stale quizId.",[N("sub","fail(staleQuiz)","{ ok:false, error }"),N("wr","status.error","failed: \"evaluate\""),N("ui","Chat card","Evaluation failed")],"return"),
+    ret("sub","wr","fail(TOOL_ERRORS.staleQuiz)",{ok:false,error:"The answers were for a quiz that has since been replaced. The student should answer the current quiz."}),
+    ev("wr","TOOL_CALL_RESULT",{toolCallId:"tc_ev1",role:"tool",content:"{\"ok\":false,\"error\":\"The answers were for a quiz that has since been replaced…\"}"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/status",value:{running:null,error:"The answers were for a quiz that has since been replaced. Answer the current quiz.",failed:"evaluate"}}]}),
+    ph("Supervisor runs to explain","`defer` starts it only after the result has passed through syncStateFromTools. Its own RUN_STARTED is dropped.",[N("wr","defer(runSupervisor)","history + synthetic evaluate"),N("sv","Supervisor LLM","explain, do not re-grade")],"defer"),
+    call("wr","sv","defer(runSupervisor([...messages, assistant evaluate call, tool result]))",null,null,"apps/agent/src/services/submit-quiz.ts"),
+    int("wr","Inner RUN_STARTED filtered out"),
+    llm("LLM step → explanation"),
+    ph("Explanation streams","",[N("ui","Assistant bubble","answer the current quiz")],"TEXT_MESSAGE_*"),
+    ev("sv","TEXT_MESSAGE_START",{messageId:"m_a3",role:"assistant"}),
+    ev("sv","TEXT_MESSAGE_CONTENT",{messageId:"m_a3",delta:"Those answers were for an older quiz. Answer the current questions and submit again."}),
+    ev("sv","TEXT_MESSAGE_END",{messageId:"m_a3"}),
+    ...fin(),
+  ],
+  state:[["status","{running:null, error, failed:\"evaluate\"}"],["quiz","unchanged, submitted:false"]],
+  notes:["An Evaluator model failure is not a grading failure: runOrFallback keeps the grade and uses the answer-key explanations plus formatFeedbackSummary."]
+});
+
+add({id:"f4-lost-call",group:"Failures & control",code:"F4",title:"Tool call with invalid arguments",
+  trigger:"The model calls a server tool with arguments the schema rejects (or an unknown tool name)",
+  summary:"The AI SDK rejects the call inside the run and tells the model, but BuiltInAgent emits no TOOL_CALL_RESULT for it. closeLostToolCalls answers every still-open server call with a failure just before RUN_FINISHED, so the client history never has a call without a result. If a later call already finished the task, that failure leaves the state alone.",
+  sees:["The card for the bad call ends as failed","The retry's card succeeds; no error on the canvas"],
+  runs:"1 run", llm:"2+ Supervisor steps",
+  start:{...IDLE,stage:"material",material:MATERIAL},
+  steps:[
+    ...pre("Simplify my learning material.",{state:{...IDLE,stage:"material",material:MATERIAL}}),
+    ph("Bad call","The start marks the task running; the AI SDK rejects the arguments and emits no result for it.",[N("sv","simplify({scop:…})","invalid arguments"),N("wr","status.running","\"simplify\"")],"inner.run"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_bad",toolCallName:"simplify"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/status",value:{running:"simplify"}}]}),
+    ev("sv","TOOL_CALL_ARGS",{toolCallId:"tc_bad",delta:"{\"scop\":\"everything\"}"}),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_bad"}),
+    act("sv","AI SDK: invalid input → model told within the run"),
+    ph("Model retries","The model fixes the arguments; the retry succeeds as in B4.",[N("sv","simplify({scope:'all'})","valid"),N("wr","applyToolResult","material written · running null")],"retry"),
+    llm("LLM retries → simplify({scope:'all'})"),
+    ev("sv","TOOL_CALL_START",{toolCallId:"tc_ok",toolCallName:"simplify"}),
+    ev("sv","TOOL_CALL_END",{toolCallId:"tc_ok"}),
+    ev("sv","TOOL_CALL_RESULT",{toolCallId:"tc_ok",role:"tool",content:"{\"ok\":true,\"data\":{\"scope\":\"all\",…}}"}),
+    ev("wr","STATE_DELTA",{delta:[{op:"add",path:"/material",value:{...MATERIAL,simplified:"# Closures, simply\n\nA closure remembers.",view:"simplified"}},{op:"add",path:"/status",value:{running:null}},{op:"add",path:"/draft",value:null}]}),
+    ph("Lost call closed at run end","closeLostToolCalls answers tc_bad with a failure. applyToolResult sees the task is no longer running and changes nothing.",[N("wr","closeLostToolCalls","failure result for tc_bad"),N("wr","applyToolResult","task not running → no change")],"RUN_FINISHED"),
+    ev("wr","TOOL_CALL_RESULT",{toolCallId:"tc_bad",role:"tool",content:"{\"ok\":false,\"error\":\"This tool call failed before it returned a result (invalid arguments or an unknown tool). Check the tool's arguments and try again.\"}"},null,"apps/agent/src/services/tool-history.ts"),
+    int("wr","applyToolResult: lost result, task no longer running → no change",null,"Without a successful retry, the task is still running and the lost result becomes status.error as before.","apps/agent/src/services/state-deltas.ts"),
+    ...fin(),
+  ],
+  state:[["status","{running:null} after a successful retry; error + failed only when nothing replaced the lost call"]],
+  notes:["Fixed: before, the lost call's failure was applied at run end, after the successful retry, and left status.error and a Retry button on a stage that had worked. state-sync.test.ts covers it.","repairToolHistory does the same repair on the way in, for threads that lost a result earlier."]
+});
+
+add({id:"f5-run-error",group:"Failures & control",code:"F5",title:"Supervisor model error (RUN_ERROR)",
+  trigger:"The Supervisor's own OpenAI call fails: revoked key (401), model unavailable, network down",
+  summary:"BuiltInAgent emits RUN_ERROR. syncStateFromTools first ends any running task, then explainRunErrors puts a readable assistant message in front of the RUN_ERROR, so the chat is never silent.",
+  sees:["“Sorry, that did not work. OpenAI rejected your API key…”","The run shows as failed"],
+  runs:"1 run", llm:"1 failed call",
+  steps:[
+    ...pre("Research photosynthesis"),
+    ph("Supervisor's call fails","BuiltInAgent turns the OpenAI error into RUN_ERROR. The wrapper's operators rewrite what follows.",[N("sv","OpenAI → 401","RUN_ERROR from BuiltInAgent")],"inner.run"),
+    llm("OpenAI → 401",{status:401}),
+    int("sv","BuiltInAgent emits RUN_ERROR { message }",{type:"RUN_ERROR",message:"Incorrect API key provided: sk-…"}),
+    ph("Wrapper explains the error","interruptTask ends a running task, then explainRunErrors inserts a readable assistant message before the RUN_ERROR.",[N("wr","explainRunErrors","TEXT_MESSAGE_* first"),N("ui","Assistant bubble","what to fix")],"RUN_ERROR"),
+    int("wr","syncStateFromTools.interruptTask",null,"Only emits a delta if a task was running or a Board draft was open."),
+    ev("wr","TEXT_MESSAGE_START",{messageId:"m_err",role:"assistant"}),
+    ev("wr","TEXT_MESSAGE_CONTENT",{messageId:"m_err",delta:"Sorry, that did not work. OpenAI rejected your API key. Change it in Settings › Account."}),
+    ev("wr","TEXT_MESSAGE_END",{messageId:"m_err"}),
+    ph("Run fails","The RUN_ERROR is still forwarded, so the client knows the run failed.",[N("ck","RUN_ERROR","run marked failed")],"SSE"),
+    ev("sv","RUN_ERROR",{message:"Incorrect API key provided: sk-…"}),
+  ],
+  state:[["status","unchanged unless a task was running"]],
+  notes:["Model-level errors inside a subagent are tool failures (F1), not RUN_ERRORs."]
+});
+
+/* ────────────────────────── Helpers ────────────────────────── */
+const OVERVIEW = {id:"overview",group:"Start here",code:"00",title:"How a turn flows"};
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+const colorOf = s => s.k==="ev" ? `var(${EVC(s.ev)})` : `var(${(KINDS[s.k]||KINDS.act).c})`;
+const laneVar = id => `var(${LANES[LI[id]].c})`;
+const kindName = s => s.k==="ev" ? "event" : (KINDS[s.k]||KINDS.act).name;
+function hlJSON(obj){
+  const txt = typeof obj==="string" ? obj : JSON.stringify(obj,null,2);
+  return esc(txt).replace(/(&quot;(?:[^&]|&(?!quot;))*?&quot;)(\s*:)?|\b(true|false|null)\b|(-?\b\d+(?:\.\d+)?\b)/g,(m,str,colon,bool,num)=>{
+    if(str) return colon?`<span class="j-k">${str}</span>${colon}`:`<span class="j-s">${str}</span>`;
+    if(bool) return `<span class="j-b">${bool}</span>`;
+    if(num) return `<span class="j-n">${num}</span>`;
+    return m;
+  });
+}
+const clone = v => v===undefined ? undefined : JSON.parse(JSON.stringify(v));
+const ICONS = {
+  play:'<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>',
+  pause:'<svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5h3v11H4zM9 2.5h3v11H9z"/></svg>',
+  prev:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 3 5 8l5 5"/></svg>',
+  next:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 3 5 5-5 5"/></svg>',
+  reset:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8a5 5 0 1 0 1.5-3.5M3 2.5v3h3"/></svg>',
+  book:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h4.5A1.5 1.5 0 0 1 8 4.5V13a1.5 1.5 0 0 0-1.5-1.5H2zM14 3H9.5A1.5 1.5 0 0 0 8 4.5V13a1.5 1.5 0 0 1 1.5-1.5H14z"/></svg>',
+  flow:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="3.5" r="1.8"/><circle cx="12" cy="3.5" r="1.8"/><circle cx="8" cy="12.5" r="1.8"/><path d="M4 5.3v1.7a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V5.3M8 9v1.7"/></svg>',
+  demo:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 3.5v9l7-4.5z"/></svg>',
+};
+
+/* Phases: the flow visualization's steps, built from the markers in a case's steps. */
+function phasesOf(c){
+  if(c._phases) return c._phases;
+  const out = [];
+  c.steps.forEach((s,i)=>{
+    if(s.k==="ph"){ out.push({t:s.t,d:s.d,nodes:s.nodes,e:s.e,par:s.par,items:[]}); return; }
+    if(!out.length) out.push({t:"Start",d:"",nodes:[],items:[]});
+    out[out.length-1].items.push({s,i});
+  });
+  return c._phases = out;
+}
+const flatSteps = c => c.steps.filter(s=>s.k!=="ph");
+
+/* ────────────────────────── Navigation ────────────────────────── */
+let current = null, tab = "overview";
+function buildNav(filter=""){
+  const f = filter.toLowerCase();
+  const groups = {};
+  [OVERVIEW,...CASES].forEach(c=>{
+    const hay = (c.title+" "+(c.trigger||"")+" "+(c.summary||"")+" "+c.code).toLowerCase();
+    if(f && !hay.includes(f)) return;
+    (groups[c.group] ||= []).push(c);
+  });
+  $("#nav").innerHTML = Object.entries(groups).map(([g,cs])=>`<div class="grp"><p class="grp-h">${esc(g)}</p>${cs.map(c=>`<button class="case-btn" data-id="${c.id}" aria-current="${current&&current.id===c.id}"><span class="cid">${c.code}</span><span>${esc(c.title)}</span></button>`).join("")}</div>`).join("") || `<p class="brand-sub">No case matches.</p>`;
+  $("#pick").innerHTML = [OVERVIEW,...CASES].map(c=>`<option value="${c.id}" ${current&&current.id===c.id?"selected":""}>${c.code} · ${esc(c.title)}</option>`).join("");
+}
+function teardown(){ flowStop(); demoStop(); }
+
+/* ────────────────────────── Case page with tabs ────────────────────────── */
+function renderCase(c){
+  teardown(); current = c;
+  const phases = phasesOf(c);
+  const evCount = flatSteps(c).filter(s=>s.k==="ev").length;
+  $("#view").innerHTML = `
+    <div class="head"><div><div class="eyebrow">${esc(c.group)} · ${c.code}</div><h1>${esc(c.title)}</h1></div>
+      <div class="chips"><span class="chip"><b>${esc(c.runs)}</b></span><span class="chip">${esc(c.llm)}</span><span class="chip"><b>${phases.length}</b> steps · <b>${evCount}</b> AG-UI events</span></div></div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="overview" aria-selected="${tab==="overview"}">${ICONS.book}Overview</button>
+      <button class="tab" role="tab" data-tab="flow" aria-selected="${tab==="flow"}">${ICONS.flow}Flow Visualization</button>
+      <button class="tab" role="tab" data-tab="demo" aria-selected="${tab==="demo"}">${ICONS.demo}Interactive Demo</button>
+    </div>
+    <div id="tabpanel" role="tabpanel"></div>`;
+  $("#view").querySelector(".tabs").addEventListener("click",e=>{ const b=e.target.closest(".tab"); if(b) setTab(b.dataset.tab); });
+  setTab(tab);
+}
+function setTab(t, opts={}){
+  teardown(); tab = t;
+  document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.tab===t)));
+  if(t==="overview") renderOverviewTab(current);
+  if(t==="flow") renderFlowTab(current, opts);
+  if(t==="demo") renderDemoTab(current);
+}
+
+/* ── Overview tab ── */
+function renderOverviewTab(c){
+  const phases = phasesOf(c);
+  const rows = flatSteps(c).map((s)=>s).filter(s=>s.k==="ev");
+  const wire = rows.length ? rows.map((s,n)=>`<button class="wire-row" data-ev="${n}"><span class="n">#${String(n+1).padStart(2,"0")}</span><span class="t" style="color:${colorOf(s)}">${s.ev}</span><span class="d">${esc(describe(s))}</span><span class="o" style="color:${laneVar(s.f)}">${ORIGIN[s.f]}</span></button>`).join("") : `<p class="ref" style="padding:12px 14px">No AG-UI events: this case never opens an SSE stream.</p>`;
+  $("#tabpanel").innerHTML = `
+    <div class="sec-h"><h2>30-second overview</h2><span>Input, mechanism and output of this case</span></div>
+    <div class="summary">
+      <div class="box"><h3>Input</h3><div class="trigger">${esc(c.trigger)}</div></div>
+      <div class="box"><h3>What happens</h3><p>${esc(c.summary)}</p></div>
+      <div class="box"><h3>Output the student sees</h3><ul>${c.sees.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
+    </div>
+    <div class="ov-cols">
+      <div class="box"><h2>Step by step</h2><ol class="qsteps">${phases.map((p,i)=>`<li><div><b>${esc(p.t)}</b>${p.d?`<small>${esc(p.d)}</small>`:""}</div></li>`).join("")}</ol>
+        <div class="chain">${phases.map(p=>`<span>${esc(p.t)}</span>`).join(" → ")}</div></div>
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+        <div class="wire"><div class="wire-h"><h2>SSE wire, in order</h2><span>Click a row to open its step in the flow</span></div><div class="wire-list" id="ovwire">${wire}</div></div>
+        <div class="box"><h2>State after</h2><ul class="state-list">${c.state.map(([k,v])=>`<li><span class="k">${esc(k)}</span><span>${esc(v)}</span></li>`).join("")}</ul>
+          ${c.notes.length?`<div class="notes"><h3>Notes</h3><ul>${c.notes.map(n=>`<li>${n}</li>`).join("")}</ul></div>`:""}</div>
+      </div>
+    </div>`;
+  $("#ovwire").addEventListener("click",e=>{
+    const r=e.target.closest(".wire-row"); if(!r) return;
+    const evs = flatSteps(c).filter(s=>s.k==="ev"), step = evs[+r.dataset.ev];
+    const pi = phasesOf(c).findIndex(p=>p.items.some(it=>it.s===step));
+    setTab("flow",{phase:pi, open:step});
+  });
+}
+
+/* ── Flow Visualization tab ── */
+const FW = 780, NW = 184, NH = 62, RH = 118, TOPPAD = 118, SIDE_GAP = 22;
+let flow = {i:-1, timer:null};
+function layoutFlow(phases){
+  const pos = [];
+  phases.forEach((p,r)=>{
+    const y = TOPPAD + r*RH, m = p.nodes.length;
+    if(p.par || m===0){
+      const tot = m*NW + (m-1)*SIDE_GAP, x0 = (FW-tot)/2;
+      pos.push(p.nodes.map((n,j)=>({x:x0+j*(NW+SIDE_GAP), y})));
+    } else {
+      const cx = (FW-NW)/2, offs = [0, NW+SIDE_GAP+18, -(NW+SIDE_GAP+18)];
+      pos.push(p.nodes.map((n,j)=>({x:cx+(offs[j]||0), y})));
+    }
+  });
+  return pos;
+}
+function renderFlowTab(c, opts={}){
+  const phases = phasesOf(c), pos = layoutFlow(phases);
+  const H = TOPPAD + phases.length*RH + 10;
+  let nodes = "", edges = "", labels = "";
+  phases.forEach((p,r)=>{
+    p.nodes.forEach((n,j)=>{
+      const P = pos[r][j];
+      nodes += `<button class="fnode" data-r="${r}" data-j="${j}" style="--lc:${laneVar(n.lane)};left:${P.x}px;top:${P.y}px;width:${NW}px;height:${NH}px"><span class="fl">${LANES[LI[n.lane]].short}</span><span class="ft">${esc(n.t)}</span><span class="fs">${esc(n.s||"")}</span></button>`;
+    });
+    /* main spine or fan-in/fan-out from the previous row */
+    if(r>0 && p.nodes.length && phases[r-1].nodes.length){
+      const prev = phases[r-1], srcs = prev.par ? prev.nodes.map((_,j)=>j) : [0], dsts = p.par ? p.nodes.map((_,j)=>j) : [0];
+      srcs.forEach(a=>dsts.forEach(b=>{
+        const A = pos[r-1][a], B = pos[r][b];
+        const x1 = A.x+NW/2, y1 = A.y+NH, x2 = B.x+NW/2, y2 = B.y, my = (y1+y2)/2;
+        edges += `<path class="edge" data-r="${r}" d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2-3}" marker-end="url(#fa)"/>`;
+      }));
+      if(p.e){ const A=pos[r-1][srcs[0]], B=pos[r][dsts[0]]; labels += `<span class="elabel" data-r="${r}" style="left:${(A.x+B.x)/2+NW/2}px;top:${(A.y+NH+B.y)/2}px">${esc(p.e)}</span>`; }
+    }
+    /* effects: main node → side nodes in the same row */
+    if(!p.par) p.nodes.slice(1).forEach((n,k)=>{
+      const A = pos[r][0], B = pos[r][k+1], right = B.x > A.x;
+      const x1 = right ? A.x+NW : A.x, x2 = right ? B.x : B.x+NW, y = A.y+NH/2;
+      edges += `<path class="edge side" data-r="${r}" d="M${x1},${y} L${x2+(right?-3:3)},${y}" marker-end="url(#fa)"/>`;
+    });
+  });
+  const laneKey = LANES.map(l=>`<span><i style="background:var(${l.c})"></i>${l.short} · ${esc(l.name)}</span>`).join("");
+  $("#tabpanel").innerHTML = `
+    <div class="sec-h"><h2>Step-by-Step Flow Visualization</h2><span>${phases.length} steps · click a node or use the controls</span></div>
+    <div class="flow-card">
+      <div class="flow-card-h"><span>Interactive flow diagram showing the execution pattern</span><b>Flow diagram available</b></div>
+      <div class="flow">
+        <div class="flow-canvas" id="fcanvas">
+          <div class="fctl">
+            <div class="fctl-row">
+              <button class="fbtn primary" id="f-play" title="Play (space)" aria-label="Play">${ICONS.play}</button>
+              <button class="fbtn" id="f-prev" title="Previous step (←)" aria-label="Previous step">${ICONS.prev}</button>
+              <button class="fbtn" id="f-next" title="Next step (→)" aria-label="Next step">${ICONS.next}</button>
+              <button class="fbtn" id="f-reset" title="Reset" aria-label="Reset">${ICONS.reset}</button>
+            </div>
+            <div class="fctl-l" id="f-lbl"></div>
+            <div class="bar"><i id="f-bar"></i></div>
+          </div>
+          <div class="flow-inner" style="width:${FW}px;height:${H}px">
+            <svg width="${FW}" height="${H}" aria-hidden="true"><defs><marker id="fa" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker></defs>${edges}</svg>
+            ${labels}${nodes}
+          </div>
+        </div>
+        <aside class="fdetail" aria-live="polite"><div class="fdetail-h"><h3>Step Details</h3></div><div class="fdetail-b" id="f-detail"></div></aside>
+      </div>
+      <div class="lane-key">${laneKey}</div>
+    </div>`;
+  flow = {i:-1, timer:null, c};
+  $("#f-play").onclick = flowToggle;
+  $("#f-prev").onclick = ()=>{ flowStop(); flowGo(Math.max(0,flow.i-1)); };
+  $("#f-next").onclick = ()=>{ flowStop(); flowGo(Math.min(phases.length-1,flow.i+1)); };
+  $("#f-reset").onclick = ()=>{ flowStop(); flowGo(-1); };
+  $("#fcanvas").addEventListener("click",e=>{ const n=e.target.closest(".fnode"); if(n){ flowStop(); flowGo(+n.dataset.r); } });
+  flowGo(opts.phase ?? -1, opts.open);
+}
+function flowGo(i, openStep){
+  const c = flow.c, phases = phasesOf(c), n = phases.length;
+  flow.i = i;
+  document.querySelectorAll("#fcanvas .fnode").forEach(el=>{
+    const r = +el.dataset.r;
+    el.classList.toggle("active", i>=0 && r===i);
+    el.classList.toggle("done", i>=0 && r<i);
+    el.classList.toggle("pending", i>=0 && r>i);
+  });
+  document.querySelectorAll("#fcanvas .edge").forEach(el=>{
+    const r = +el.dataset.r;
+    el.classList.toggle("active", i>=0 && r===i);
+    el.classList.toggle("done", i>=0 && r<i);
+    el.classList.toggle("pending", i>=0 && r>i);
+  });
+  document.querySelectorAll("#fcanvas .elabel").forEach(el=>el.classList.toggle("active", +el.dataset.r===i));
+  $("#f-lbl").textContent = i<0 ? `Ready · ${n} steps` : `Step ${i+1} of ${n}`;
+  $("#f-bar").style.width = i<0 ? "0%" : `${((i+1)/n)*100}%`;
+  $("#f-play").innerHTML = flow.timer ? ICONS.pause : ICONS.play;
+  const d = $("#f-detail");
+  if(i<0){
+    d.innerHTML = `<p>Click play or use the step controls to begin the interactive demonstration. Each step lights up the components involved; the panel lists every event and payload in it.</p><div class="lbl">Steps</div>${phases.map((p,k)=>`<div class="comp"><i style="background:var(--accent-soft)"></i>${k+1}. ${esc(p.t)}</div>`).join("")}`;
+    return;
+  }
+  const p = phases[i];
+  d.innerHTML = `<h4>${esc(p.t)}</h4>${p.d?`<p>${esc(p.d)}</p>`:""}
+    ${p.nodes.length?`<div class="lbl">Components</div>${p.nodes.map(x=>`<div class="comp"><i style="background:${laneVar(x.lane)}"></i><div>${esc(x.t)}<br><span>${esc(x.s||"")}</span></div></div>`).join("")}`:""}
+    <div class="lbl">What travels in this step · ${p.items.length}</div>
+    ${p.items.map(({s})=>`<details class="it" ${s===openStep?"open":""}><summary><span class="kind" style="background:${colorOf(s)}">${kindName(s)}</span><span class="lab">${esc(s.k==="ev"?`${s.ev}${describe(s)?" · "+describe(s):""}`:s.l)}</span></summary><div class="body">
+      <p>${esc(LANES[LI[s.f]].name)}${s.f!==s.t?" → "+esc(LANES[LI[s.t]].name):""}${s.k==="ev"?` · created by ${ORIGIN[s.f]||s.f}`:""}</p>
+      ${s.n?`<p>${esc(s.n)}</p>`:""}${s.ref?`<p class="ref">${esc(s.ref)}</p>`:""}${s.d!=null?`<pre class="json">${hlJSON(s.d)}</pre>`:""}</div></details>`).join("")}`;
+  const act = document.querySelector(`#fcanvas .fnode[data-r="${i}"]`), cv = $("#fcanvas");
+  if(act){ const top = act.offsetTop - cv.clientHeight/2 + NH; if(act.offsetTop < cv.scrollTop+100 || act.offsetTop > cv.scrollTop+cv.clientHeight-NH-20) cv.scrollTo({top:Math.max(0,top),behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); }
+  const op = d.querySelector("details[open]"); if(op) op.scrollIntoView({block:"nearest"});
+}
+function flowToggle(){
+  if(flow.timer){ flowStop(); flowGo(flow.i); return; }
+  const n = phasesOf(flow.c).length;
+  if(flow.i >= n-1) flow.i = -1;
+  flow.timer = setInterval(()=>{ if(flow.i>=n-1){ flowStop(); flowGo(flow.i); return; } flowGo(flow.i+1); }, 1700);
+  flowGo(flow.i+1);
+}
+function flowStop(){ if(flow.timer){ clearInterval(flow.timer); flow.timer=null; } }
+
+/* ── Interactive Demo tab ── */
+let demo = null;
+function startStateOf(c){
+  if(c.start) return clone(c.start);
+  const h = c.steps.find(s=>s.k==="http" && s.d && s.d.body && s.d.body.state);
+  return clone(h ? h.d.body.state : IDLE);
+}
+function renderDemoTab(c){
+  $("#tabpanel").innerHTML = `
+    <div class="sec-h"><h2>Interactive Demonstrations</h2><span>A mock of the app replaying this case's real events and state patches</span></div>
+    <div class="demo">
+      <div class="demo-bar">
+        <h3>${esc(c.code)} · ${esc(c.title)}</h3>
+        <button class="dbtn go" id="d-start">${ICONS.play}<span>Start</span></button>
+        <button class="dbtn" id="d-step" title="One step">${ICONS.next}<span>Step</span></button>
+        <button class="dbtn" id="d-reset">${ICONS.reset}<span>Reset</span></button>
+        <label class="speed" for="d-speed">Speed <input id="d-speed" type="range" min="0.5" max="3" step="0.5" value="1"><b id="d-sv">1x</b></label>
+        <div class="lanes-strip" id="d-lanes">${LANES.map(l=>`<span data-l="${l.id}" style="--lc:var(${l.c})">${l.short}</span>`).join("")}</div>
+      </div>
+      <div class="now" id="d-now"></div>
+      <div class="demo-grid">
+        <div class="d-chat"><div class="pane-h"><span>Chat</span><span id="d-run"></span></div><div class="d-msgs" id="d-msgs"></div></div>
+        <div class="d-canvas"><div class="ctabs" id="d-ctabs"></div><div class="toast" id="d-toast"></div><div class="stepper" id="d-stepper"></div><div class="cbody" id="d-cbody"></div></div>
+      </div>
+      <div class="demo-foot">
+        <div><div class="pane-h"><span>SSE wire</span><span id="d-wn"></span></div><div class="dwire" id="d-wire"></div></div>
+        <div><div class="pane-h"><span>agent.state</span><span>highlighted = just changed</span></div><div class="dstate" id="d-state"></div></div>
+      </div>
+    </div>`;
+  demoReset(c);
+  $("#d-start").onclick = demoToggle;
+  $("#d-step").onclick = ()=>{ demoStop(); demoStepOnce(); };
+  $("#d-reset").onclick = ()=>{ demoStop(); demoReset(c); };
+  $("#d-speed").oninput = e=>{ demo.speed = +e.target.value; $("#d-sv").textContent = e.target.value+"x"; };
+}
+function demoReset(c){
+  const speed = demo && demo.c===c ? demo.speed : 1;
+  demo = {c, steps:c.steps, i:0, S:startStateOf(c), chat:[], cards:{}, store:{}, wire:[], ms:0, timer:null, speed, running:false, phase:"", changed:new Set(), tabHint:null, flash:false, runFailed:false};
+  $("#d-speed").value = speed; $("#d-sv").textContent = speed+"x";
+  $("#d-now").innerHTML = `<b>Ready.</b> Press Start to replay ${flatSteps(c).length} steps. The chat, canvas, wire and state below all change from the case's own events.`;
+  demoRender(null);
+  demoBtn();
+}
+function demoBtn(){ const b=$("#d-start"); if(!b) return; const done = demo.i>=demo.steps.length; b.innerHTML = demo.timer ? `${ICONS.pause}<span>Pause</span>` : `${ICONS.play}<span>${done?"Replay":demo.i>0?"Resume":"Start"}</span>`; }
+function demoToggle(){
+  if(demo.timer){ demoStop(); return; }
+  if(demo.i>=demo.steps.length) demoReset(demo.c);
+  demo.timer = true; demoBtn(); demoTick();
+}
+function demoStop(){ if(demo && demo.timer){ clearTimeout(demo.timer); demo.timer=null; demoBtn(); } }
+function demoTick(){
+  if(!demo.timer) return;
+  if(demo.i>=demo.steps.length){ demo.timer=null; demoBtn(); $("#d-now").innerHTML += ` <b style="color:var(--ok)">· Done.</b>`; return; }
+  const s = demo.steps[demo.i];
+  const delay = demoStepOnce();
+  demo.timer = setTimeout(demoTick, delay/(demo.speed||1));
+}
+const DELAY = {ph:350, act:750, llm:950, http:700, call:650, ret:650, local:700, int:650, a2ui:500, ev:520};
+function demoStepOnce(){
+  if(demo.i>=demo.steps.length){ demoBtn(); return 0; }
+  const s = demo.steps[demo.i++];
+  demo.changed = new Set();
+  applyDemoStep(s);
+  let d = DELAY[s.k] || 500;
+  if(s.ev==="TEXT_MESSAGE_CONTENT") d = Math.min(1600, 250 + (s.d.delta||"").length*18);
+  if(s.ev==="TOOL_CALL_ARGS") d = 380;
+  demo.ms += d;
+  demoRender(s);
+  demoBtn();
+  return d;
+}
+/* JSON Pointer add/replace/remove on the simulated agent.state */
+function applyOps(S, ops){
+  (ops||[]).forEach(o=>{
+    const parts = o.path.split("/").slice(1).map(p=>p.replace(/~1/g,"/").replace(/~0/g,"~"));
+    let t = S;
+    for(let k=0;k<parts.length-1;k++){ const p = parts[k]; if(t[p]==null || typeof t[p]!=="object") t[p] = {}; t = t[p]; }
+    const last = parts[parts.length-1];
+    if(o.op==="remove"){ Array.isArray(t) ? t.splice(+last,1) : delete t[last]; }
+    else t[last] = o.value===undefined ? "✓ written" : clone(o.value);
+    demo.changed.add(parts[0]);
+    if(parts[0]==="board"||parts[0]==="boardDraft") demo.tabHint = "board";
+    else if(["stage","status","draft","research","material","quiz","evaluation","score","feedback"].includes(parts[0])) demo.tabHint = "path";
+  });
+}
+const findCard = id => demo.cards[id];
+function cardLabels(c){
+  if(c.tool==="renderSurface") return TOOL_LABELS[c.target==="canvas"?"renderSurface_canvas":"renderSurface_chat"];
+  return TOOL_LABELS[c.tool] || {running:c.tool, done:c.tool};
+}
+function applyDemoStep(s){
+  const lanes = new Set([s.f, s.t].filter(Boolean));
+  demo.lanes = lanes;
+  if(s.k==="ph"){ demo.phase = s.t; demo.lanes = new Set(s.nodes.map(n=>n.lane)); return; }
+  if(s.say) demo.chat.push({type:"user", text:s.say});
+  if(s.ops) applyOps(demo.S, s.ops);
+  if(s.hitl){ const h = [...demo.chat].reverse().find(m=>m.type==="card" && m.tool==="confirmNewTopic"); if(h){ h.picked = s.hitl; h.status="done"; } }
+  if(s.k==="act" && s.f==="ui" && !/^Student sends/.test(s.l)) demoToast(s.l);
+  if(s.k==="http" || (s.k==="call" && s.f==="ck" && s.t==="rt")) demo.wire.push({cls:"l-http", text:`→ ${s.l}`});
+  if(s.store){ Object.assign(demo.store, s.store); Object.keys(s.store).forEach(k=>demo.changed.add(k)); }
+  if(s.sys) demo.chat.push({type:"sys", text:s.sys});
+  if(s.k==="a2ui") demo.flash = true;
+  if(s.k!=="ev") return;
+  const d = s.d;
+  demo.wire.push({cls:"l-ev", ev:s.ev, text:describe(s)});
+  switch(s.ev){
+    case "RUN_STARTED": demo.running = true; demo.runFailed = false; break;
+    case "RUN_FINISHED": demo.running = false; demo.chat.forEach(m=>{ if(m.type==="card" && m.status==="running" && m.client) m.status="done"; }); break;
+    case "RUN_ERROR": demo.running = false; demo.runFailed = true; break;
+    case "TEXT_MESSAGE_START": demo.chat.push({type:"bot", id:d.messageId, text:"", streaming:true}); break;
+    case "TEXT_MESSAGE_CONTENT": {
+      let m = demo.chat.find(x=>x.type==="bot" && x.id===d.messageId);
+      if(!m){ m = {type:"bot", id:d.messageId, text:"", streaming:false}; demo.chat.push(m); }
+      m.text += d.delta; m.err = /^Sorry, that did not work/.test(m.text); break; }
+    case "TEXT_MESSAGE_END": { const m = demo.chat.find(x=>x.type==="bot" && x.id===d.messageId); if(m) m.streaming=false; break; }
+    case "TOOL_CALL_START": {
+      if(d.toolCallName==="readBoardSurface"){ demo.cards[d.toolCallId] = {hidden:true, tool:d.toolCallName, args:""}; break; }
+      const card = {type:"card", id:d.toolCallId, tool:d.toolCallName, args:"", status:"running", client:/^(show|set|confirm)/.test(d.toolCallName)};
+      demo.cards[d.toolCallId] = card; demo.chat.push(card); break; }
+    case "TOOL_CALL_ARGS": { const c = findCard(d.toolCallId); if(c){ c.args += d.delta; const t = c.args.match(/"target":"(\w+)"/); if(t) c.target = t[1]; const ti = c.args.match(/"title":"([^"]+)"/); if(ti) c.title = ti[1]; const tp = c.args.match(/"topic":"([^"]+)"/); if(tp) c.topic = tp[1]; const th = c.args.match(/"theme":"([^"]+)"/); if(th) c.theme = th[1]; } break; }
+    case "TOOL_CALL_END": { const c = findCard(d.toolCallId); if(c && c.client){ try{ c.parsed = JSON.parse(c.args); }catch(e){} if(c.tool!=="confirmNewTopic") c.status="done"; } break; }
+    case "TOOL_CALL_RESULT": {
+      const c = findCard(d.toolCallId), txt = d.content||""; if(!c || c.hidden) break;
+      if(/stopped this step/.test(txt)) c.status="stopped";
+      else if(/"requires"/.test(txt)) c.hide = true;
+      else if(/"ok":\s*false/.test(txt)) { c.status="failed"; }
+      else if(/^\{"error"/.test(txt)) { c.status="failed"; if(c.tool==="renderSurface") c.hide = true; }
+      else { c.status="done"; if(c.tool==="renderSurface" && c.target!=="canvas") c.hide = true;
+        if(c.tool==="deleteBoardSurface") c.title = [...txt.matchAll(/"title":"([^"]+)"/g)].map(m=>m[1]).join(", ");
+        if(c.tool==="generateQuiz") c.detail = `${(demo.S.draft&&demo.S.draft.questions||QS).length>1?3:1} questions`;
+        if(c.tool==="evaluate") c.feedbackReady = true; }
+      break; }
+    case "STATE_DELTA": applyOps(demo.S, d.delta); break;
+    case "ACTIVITY_SNAPSHOT": {
+      const ops = (d.content&&d.content.a2ui_operations)||[], upd = ops.find(o=>o.updateComponents), comps = upd && Array.isArray(upd.updateComponents.components) ? upd.updateComponents.components.filter(x=>x&&typeof x==="object") : [];
+      demo.chat.push({type:"surface", comps}); demo.flash = true; break; }
+  }
+}
+function demoToast(t){ const el=$("#d-toast"); if(!el) return; el.textContent = "Student: "+t; el.classList.add("show"); clearTimeout(demo.toastT); demo.toastT = setTimeout(()=>el.classList.remove("show"), 1500/(demo.speed||1)+600); }
+
+/* ── demo views ── */
+const str = v => typeof v==="string";
+const obj = v => v && typeof v==="object" && !Array.isArray(v);
+const cut = (t,n)=> str(t) && t.length>n ? t.slice(0,n-1)+"…" : (t??"");
+function renderCardHTML(c){
+  if(c.hide) return "";
+  if(c.tool==="showConceptCard"){
+    const p = c.parsed || {};
+    const term = p.term || (c.args.match(/"term":"([^"]*)/)||[])[1] || "…";
+    const def = p.definition || (c.args.match(/"definition":"([^"]*)/)||[])[1] || "";
+    return `<div class="tcard concept"><div class="sm">Concept</div><div class="term">${esc(term)}</div><div>${esc(def)}${c.status==="running"?"…":""}</div>${p.example?`<div class="md">${esc(p.example)}</div>`:""}</div>`;
+  }
+  if(c.tool==="confirmNewTopic"){
+    return `<div class="tcard"><div class="row"><span class="dot"></span><span class="tt">Switch to “${esc(c.topic||"…")}”?</span></div><div class="sm">This clears the current research, learning material, quiz and results. The chat stays.</div><div class="btns"><span class="${c.picked==="confirm"?"picked":""}">Start new topic</span><span class="${c.picked==="keep"?"picked":""}">Keep current topic</span></div>${c.picked?`<div class="subcard">${c.picked==="confirm"?"Starting the new topic":"Kept the current topic"}</div>`:""}</div>`;
+  }
+  if(/^set/.test(c.tool)){
+    return `<div class="tcard ${c.status}"><div class="row"><span class="dot"></span><span class="tt">${esc(c.tool)}</span><span class="sm">${esc(c.theme||"")}</span></div></div>`;
+  }
+  const L = cardLabels(c);
+  const detail = c.tool==="research" ? c.topic : c.tool==="generateQuiz" ? c.detail : c.title;
+  const title = c.status==="running" ? `${L.running}${c.tool==="research"&&c.topic?` “${c.topic}”`:""}…` : c.status==="done" ? `${L.done}${detail?": "+detail:""}` : (L[c.status] || (c.status==="failed"?`${c.tool} failed`:`${c.tool} stopped`));
+  return `<div class="tcard ${c.status}"><div class="row"><span class="dot"></span><span class="tt">${esc(title)}</span>${c.status==="running"?`<span class="stop">Stop</span>`:""}</div>${c.feedbackReady?`<div class="subcard">Feedback ready · see your personal feedback →</div>`:""}</div>`;
+}
+function renderSurfaceHTML(comps){
+  if(!comps.length) return `<div class="surface"><div class="st">View</div></div>`;
+  const root = comps.find(x=>x.id==="root") || comps[0];
+  const body = comps.filter(x=>x!==root).map(x=>{
+    if(x.component==="Paragraph") return `<p style="margin:4px 0">${esc(x.text||"")}</p>`;
+    if(x.component==="Table") return `<table><tr>${(x.columns||[]).map(h=>`<td><b>${esc(h)}</b></td>`).join("")}</tr>${(x.rows||[]).map(r=>`<tr>${r.map(v=>`<td>${esc(v)}</td>`).join("")}</tr>`).join("")}</table>`;
+    if(x.component==="Callout") return `<div class="co">${esc(x.text||"")}</div>`;
+    if(x.component==="BulletList") return `<ul style="margin:4px 0;padding-left:18px">${(x.items||[]).map(i=>`<li>${esc(i)}</li>`).join("")}</ul>`;
+    return `<div class="sm">${esc(x.component)}</div>`;
+  }).join("");
+  return `<div class="surface"><div class="st">${esc(root.title||"View")}</div>${body}</div>`;
+}
+const RUN_STAGE = {research:"research",material:"material",simplify:"material",quiz:"quiz",evaluate:"evaluation"};
+const STAGES = [["research","Research"],["material","Learning Material"],["quiz","Quiz"],["evaluation","Evaluation"],["score","Score"],["feedback","Feedback"]];
+function stageData(S, id){ return S[id]!=null && S[id]!=="" ; }
+function renderStage(S){
+  const st = S.status||{}, running = st.running, dr = S.draft;
+  let stage = running ? RUN_STAGE[running] : S.stage;
+  if(dr && dr.task==="evaluate") stage = "evaluation";
+  const building = id => (running && RUN_STAGE[running]===id) || (dr && ((dr.task==="evaluate" && ["evaluation","score","feedback"].includes(id)) || RUN_STAGE[dr.task]===id));
+  $("#d-stepper").innerHTML = STAGES.map(([id,t])=>`<span class="${id===stage?"on":building(id)?"bd":stageData(S,id)?"un":""}">${t}</span>`).join("");
+  let h = "";
+  if(st.error) h += `<div class="callout err"><b>Something went wrong.</b> ${esc(st.error)}${st.failed?`<br><span class="retry">Retry</span>`:""}</div>`;
+  if(S.quizOutdated && (stage==="material"||stage==="quiz")) h += `<div class="callout">Your learning material changed, so the old quiz and its results were cleared. Ask for a new quiz when your learning material is ready.</div>`;
+  if(!stage || stage==="idle"){ $("#d-cbody").innerHTML = h + `<div class="empty">The canvas is empty.<br>Research a topic to start the learning path.</div>`; return; }
+  const streaming = dr ? `<span class="stream-tag">streaming</span>` : "";
+  if(stage==="research"){
+    const r = dr&&dr.task==="research" ? dr.research : S.research;
+    if(!obj(r)) h += running ? `<div class="skel" style="width:60%"></div><div class="skel"></div><div class="skel" style="width:80%"></div>` : `<p>${esc(r||"")}</p>`;
+    else h += `<h4>${esc(r.title||"")}${dr&&dr.task==="research"?streaming:""}</h4><p>${esc(cut(r.summary,220))}</p>${r.keyInsight?`<div class="callout"><b>Key insight.</b> ${esc(r.keyInsight)}</div>`:""}<div class="tags">${(r.keyTerms||[]).filter(obj).map(k=>`<span>${esc(k.term||"")}</span>`).join("")}</div>${(r.sources||[]).filter(obj).length?`<div class="sm" style="font-size:12px;color:var(--muted)">Sources: ${(r.sources||[]).filter(obj).map(x=>esc(x.title)).join(" · ")}</div>`:""}`;
+  }
+  if(stage==="material"){
+    const m = S.material;
+    const text = dr && (dr.task==="material"||dr.task==="simplify") ? dr.markdown : obj(m) ? (m.view==="simplified"&&m.simplified ? m.simplified : m.original) : null;
+    if(text==null) h += `<div class="skel" style="width:40%"></div><div class="skel"></div><div class="skel"></div>`;
+    else h += `<div class="tags"><span style="${!obj(m)||m.view!=="simplified"?"background:var(--ink);color:var(--surface)":""}">Original</span><span style="${obj(m)&&m.view==="simplified"?"background:var(--ink);color:var(--surface)":""}">Simplified</span>${dr&&(dr.task==="material"||dr.task==="simplify")?streaming:""}</div><div class="md">${esc(cut(String(text),600))}</div>`;
+  }
+  if(stage==="quiz"){
+    const q = S.quiz, qs = dr&&dr.task==="quiz" ? dr.questions : obj(q) ? (q.questions||[]).filter(obj) : [];
+    if(!qs.length) h += `<div class="skel"></div><div class="skel" style="width:70%"></div>`;
+    const ans = obj(q)&&obj(q.answers) ? q.answers : {};
+    h += qs.map((x,k)=>`<div class="qq"><b>${k+1}.</b> ${esc(x.question||"…")} <span style="color:var(--faint);font-size:11px">${esc(x.concept||"")}</span><div class="opts">${(x.options||[]).map((o,oi)=>`<span class="${x.id&&ans[x.id]===oi?"pick":""}">${esc(o)}</span>`).join("")}</div></div>`).join("");
+    if(qs.length){ const n = Object.keys(ans).length, all = !dr && n>=qs.length && !(q&&q.submitted); h += `<div class="qbar"><span>${dr?"Writing questions… locked":`${n} / ${qs.length} answered`}</span><span class="sub ${all?"on":""}">Submit</span></div>`; }
+  }
+  if(stage==="evaluation"||stage==="score"||stage==="feedback"){
+    const e = dr&&dr.task==="evaluate" ? dr.evaluation : S.evaluation, sc = dr&&dr.task==="evaluate" ? dr.score : S.score;
+    const fb = dr&&dr.task==="evaluate" ? dr.feedback : S.feedback;
+    if(obj(e)) h += `<h4>Evaluation${dr?streaming:""}</h4><div class="tiles"><div><b>${e.percent}%</b><span>Accuracy</span></div><div><b>${e.correct} / ${e.total}</b><span>Correct answers</span></div><div><b style="font-size:14px">${esc(e.weakestConcept||"None")}</b><span>Weakest concept</span></div>${obj(sc)?`<div><b>${esc(sc.tier)}</b><span>Score tier</span></div>`:""}</div>`;
+    else h += `<div class="skel"></div>`;
+    if(obj(fb)){
+      const up = (fb.a2uiOperations||[]).find(o=>obj(o)&&o.updateComponents), comps = up&&Array.isArray(up.updateComponents.components) ? up.updateComponents.components.filter(obj) : [];
+      const card = comps.find(x=>x.component==="FeedbackCard");
+      if(card) h += `<div class="surface"><div class="st">${esc(card.title)}</div><p style="margin:4px 0">${esc(card.body)}</p><div class="tags">${comps.filter(x=>x.component==="ConceptChip").map(x=>`<span>${esc(x.concept)} · ${x.percent}%</span>`).join("")}${comps.filter(x=>x.component==="ReviewLink").map(x=>`<span style="color:var(--accent)">${esc(x.label)} →</span>`).join("")}</div></div>`;
+      else if(fb.summary) h += `<p>${esc(fb.summary)}</p>`;
+      if(S.reflection && obj(S.reflection)) h += `<div class="callout" style="border-color:var(--ok)">Reflection saved · ${S.reflection.rating}/5 · “${esc(S.reflection.text)}”</div>`;
+    }
+  }
+  $("#d-cbody").innerHTML = h;
+}
+function renderBoard(S){
+  $("#d-stepper").innerHTML = "";
+  const views = (S.board||[]).filter(obj);
+  let h = views.map(v=>{ const up=(v.operations||[]).find(o=>obj(o)&&o.updateComponents); const n = up&&Array.isArray(up.updateComponents.components)?up.updateComponents.components.filter(obj).length:0; return `<div class="bview"><b>${esc(v.title)}</b> <span class="sm" style="color:var(--muted);font-size:11.5px">revision ${v.revision} · ${n} components</span></div>`; }).join("");
+  if(obj(S.boardDraft)){ const up=(S.boardDraft.operations||[]).find(o=>obj(o)&&o.updateComponents); const n = up&&Array.isArray(up.updateComponents.components)?up.updateComponents.components.filter(obj).length:0; h += `<div class="bview draft"><b>${esc(S.boardDraft.title)}</b><span class="stream-tag">drawing</span> <span style="color:var(--muted);font-size:11.5px">${n} components so far</span></div>`; }
+  $("#d-cbody").innerHTML = h || `<div class="empty">The Board is empty.<br>Ask for a cheat sheet or overview “on the canvas”.</div>`;
+}
+function briefJSON(v, depth=0){
+  if(v===null) return "null";
+  if(str(v)) return JSON.stringify(cut(v.replace(/\n/g," "),46));
+  if(typeof v!=="object") return String(v);
+  if(Array.isArray(v)) return v.length===0 ? "[]" : depth>=1 ? `[…${v.length}]` : `[${v.slice(0,2).map(x=>briefJSON(x,depth+1)).join(", ")}${v.length>2?`, …+${v.length-2}`:""}]`;
+  const ks = Object.keys(v); if(!ks.length) return "{}";
+  if(depth>=1) return `{ ${ks.slice(0,4).join(", ")}${ks.length>4?", …":""} }`;
+  return `{ ${ks.slice(0,6).map(k=>`${k}: ${briefJSON(v[k],depth+1)}`).join(", ")}${ks.length>6?", …":""} }`;
+}
+function demoRender(s){
+  const D = demo;
+  /* now bar */
+  if(s){
+    const what = s.k==="ph" ? `<b>Step: ${esc(s.t)}</b>${s.d?` · ${esc(cut(s.d,150))}`:""}` : `<b>${esc(D.phase)}</b> · <span class="kind" style="background:${colorOf(s)}">${kindName(s)}</span> <code>${esc(cut(s.k==="ev"?`${s.ev} ${describe(s)}`:s.l,110))}</code>`;
+    $("#d-now").innerHTML = what + `<span style="margin-left:auto;font-family:var(--mono);font-size:11px">${D.i} / ${D.steps.length}</span>`;
+  }
+  document.querySelectorAll("#d-lanes span").forEach(el=>el.classList.toggle("on", !!(D.lanes && D.lanes.has(el.dataset.l))));
+  $("#d-run").textContent = D.runFailed ? "run failed" : D.running ? "agent running…" : "";
+  /* chat */
+  const msgs = D.chat.map(m=> m.type==="user" ? `<div class="bub user">${esc(cut(m.text,220))}</div>` : m.type==="bot" ? `<div class="bub bot ${m.streaming?"streaming":""} ${m.err?"err":""}">${esc(m.text)}</div>` : m.type==="card" ? renderCardHTML(m) : m.type==="surface" ? renderSurfaceHTML(m.comps) : m.type==="sys" ? `<div class="sysnote">${esc(m.text)}</div>` : "").join("") + (D.running && !D.chat.some(m=>m.type==="bot"&&m.streaming) ? `<div class="typing"><i></i><i></i><i></i></div>` : "");
+  const box = $("#d-msgs"); box.innerHTML = msgs || `<div class="empty" style="padding:40px 6px">No messages yet.</div>`; box.scrollTop = box.scrollHeight;
+  /* canvas */
+  const S = D.S, boardTab = D.tabHint==="board" || (!!S.boardDraft);
+  $("#d-ctabs").innerHTML = `<span class="${boardTab?"":"on"}">Learning path</span><span class="${boardTab?"on":""}">Board (${(S.board||[]).length})</span>`;
+  boardTab ? renderBoard(S) : renderStage(S);
+  const cb = $("#d-cbody"); if(D.flash){ cb.classList.add("flash"); setTimeout(()=>cb.classList.remove("flash"), 450); D.flash=false; }
+  /* wire */
+  let t = 0;
+  $("#d-wire").innerHTML = D.wire.map(w=> w.ev ? `<span class="l-ev">[ag-ui] <b style="color:var(${EVC(w.ev)})">${w.ev}</b> ${esc(cut(w.text,70))}</span>` : `<span class="${w.cls}">${esc(w.text)}</span>`).join("\n") || `<span class="l-ev">Waiting for the first request…</span>`;
+  const wb = $("#d-wire"); wb.scrollTop = wb.scrollHeight;
+  $("#d-wn").textContent = `${D.wire.filter(w=>w.ev).length} events`;
+  /* state */
+  $("#d-state").innerHTML = Object.entries(D.store).map(([k,v])=>`<span class="sk ${D.changed.has(k)?"flash":""}"><span class="kk" style="color:var(--lane-ck)">${esc(k)}</span>: ${esc(briefJSON(v))}</span>`).join("") + Object.keys(S).map(k=>`<span class="sk ${D.changed.has(k)?"flash":""}"><span class="kk">${esc(k)}</span>: ${esc(briefJSON(S[k]))}</span>`).join("");
+  requestAnimationFrame(()=>document.querySelectorAll("#d-state .sk.flash").forEach(el=>el.classList.remove("flash")));
+}
+
+/* ────────────────────────── Start page ────────────────────────── */
+function renderOverview(){
+  teardown(); current = OVERVIEW;
+  const arch = `<svg class="arch" viewBox="0 0 980 300" role="img" aria-label="Architecture: browser, runtime route, wrapper, Supervisor, subagents">
+    <defs><marker id="oa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ar-a"/></marker></defs>
+    ${[["Browser",20,"--lane-ui",["CopilotChat · canvas stages","Board · Settings"],"useAgent → agent.state"],["CopilotKit client",180,"--lane-ck",["HttpAgent (SSE)","tools · renderers · context"],"applies STATE_DELTA patches"],["Runtime route",340,"--lane-rt",["CopilotRuntime","A2UIMiddleware"],"POST /agent/learning/run"],["Wrapper",500,"--lane-wr",["LearningSupervisorAgent","rxjs operator pipeline"],"only writer of state"],["Supervisor",660,"--lane-sv",["BuiltInAgent","gpt-5.4-mini · low effort"],"routes, never builds UI"],["Tools",820,"--lane-sub",["research · makeMaterial","simplify · quiz · evaluate","renderSurface · board"],"each a focused LLM call"]].map(([t,x,c,lines,m])=>`
+      <rect class="bx" x="${x}" y="40" width="140" height="150" rx="8"/><rect x="${x}" y="40" width="140" height="5" rx="2" fill="var(${c})"/>
+      <text class="t-b" x="${x+12}" y="70">${t}</text>${lines.map((l,i)=>`<text class="t-s" x="${x+12}" y="${94+i*17}">${l}</text>`).join("")}<text class="t-m" x="${x+12}" y="176">${m}</text>`).join("")}
+    ${[160,320,480,640,800].map(x=>`<line class="ar" x1="${x+2}" y1="100" x2="${x+18}" y2="100" marker-end="url(#oa)"/><line class="ar" x1="${x+18}" y1="130" x2="${x+2}" y2="130" marker-end="url(#oa)"/>`).join("")}
+    <text class="t-s" x="20" y="226">→ request: RunAgentInput (messages, full state, frontend tools, context, forwardedProps.settings, sealed key header)</text>
+    <text class="t-s" x="20" y="246">← response: one SSE stream of AG-UI events; the wrapper adds STATE_DELTA, the middleware adds ACTIVITY_SNAPSHOT</text>
+    <text class="t-s" x="20" y="266">Everything runs in the Next.js process: the route imports @repo/agent. v1 keeps no server state between runs.</text>
+  </svg>`;
+  $("#view").innerHTML = `
+    <div class="head"><div><div class="eyebrow">Start here · 00</div><h1>How a turn flows</h1></div>
+      <div class="chips"><span class="chip"><b>${CASES.length}</b> cases</span><span class="chip">CopilotKit 1.72 · @ag-ui/client 0.0.59 · A2UI v0.9</span></div></div>
+    <div class="box"><p>A turn starts in the browser (a chat message, a canvas button, or a card's answer), becomes one HTTP POST carrying the whole AG-UI <code>RunAgentInput</code>, and comes back as one SSE stream of AG-UI events. The LLM only routes: data reaches the canvas through <code>STATE_DELTA</code> patches the wrapper derives from tool results, and every visual is an A2UI surface drawn from one of four catalogs. Every case has three tabs: <b>Overview</b>, a <b>Flow Visualization</b> you can step through, and an <b>Interactive Demo</b> that replays the case in a mock of the app.</p></div>
+    <div class="box" style="margin-top:14px;overflow-x:auto">${arch}</div>
+    <div class="ov-grid">
+      <div class="box"><h2>The wrapper's pipeline (in code order)</h2><ol class="pipe">
+        <li class="src"><div><code>inner.run(…)</code> or <code>runSubmittedQuiz(…)</code><small>Source. Submit is graded in code; everything else runs the Supervisor.</small></div></li>
+        <li><div><code>filter(!inner STATE_*)</code><small>The inner agent sees a trimmed state, so its own state events would wipe the client's.</small></div></li>
+        <li><div><code>muteRepliesAfterCards</code><small>Drops text after a successful card tool (except a kept topic): the card is the reply.</small></div></li>
+        <li><div><code>closeLostToolCalls</code><small>Gives every unanswered server tool call a failure (or stopped) result before the run ends.</small></div></li>
+        <li><div><code>mergeWith(drafts → CUSTOM learning.stageDraft)</code><small>Subagent partial output, throttled to 120 ms.</small></div></li>
+        <li><div><code>streamBoardDrafts</code><small>Parses renderSurface / updateBoardSurface args as they stream → CUSTOM learning.boardDraft.</small></div></li>
+        <li><div><code>syncStateFromTools</code><small>The only state writer. Tool start/result and drafts → STATE_DELTA (JSON Patch). Swallows the CUSTOM events.</small></div></li>
+        <li><div><code>explainRunErrors</code><small>Readable assistant text before every RUN_ERROR.</small></div></li>
+        <li><div><code>traceTurn</code><small>One LangSmith trace per turn when LANGSMITH_TRACING=true.</small></div></li>
+        <li class="rt"><div><code>A2UIMiddleware.processStream</code><small>Runtime: a tool result with <code>a2ui_operations</code> → ACTIVITY_SNAPSHOT; holds RUN_FINISHED to the end. Also turns forwardedProps.a2uiAction into a log_a2ui_event message on the way in.</small></div></li>
+      </ol></div>
+      <div class="box"><h2>How the client uses each event</h2><div class="tbl-wrap"><table class="t">
+        <tr><th>Event</th><th>Who makes it</th><th>What the client does</th></tr>
+        <tr><td><code>RUN_STARTED / FINISHED</code></td><td>Supervisor, or wrapper on Submit</td><td>isRunning locks canvas input; after FINISHED, pending frontend tools run and may start a follow-up run</td></tr>
+        <tr><td><code>TEXT_MESSAGE_*</code></td><td>Supervisor, or wrapper for errors</td><td>Assistant bubble in CopilotChat</td></tr>
+        <tr><td><code>TOOL_CALL_*</code></td><td>Supervisor, or wrapper (synthetic evaluate, lost results)</td><td>Card by tool name: useRenderTool, useComponent, useFrontendTool, useHumanInTheLoop</td></tr>
+        <tr><td><code>STATE_DELTA</code></td><td>Wrapper only</td><td>JSON Patch on agent.state → useLearningAgent → stages, stepper, Board</td></tr>
+        <tr><td><code>ACTIVITY_SNAPSHOT</code></td><td>A2UIMiddleware only</td><td>CopilotChat draws a2ui-surface with CHAT_UI_CATALOG</td></tr>
+        <tr><td><code>RUN_ERROR</code></td><td>Supervisor or wrapper</td><td>Run marked failed; the explanation text came first</td></tr>
+      </table></div></div>
+      <div class="box"><h2>Four A2UI catalogs</h2><div class="tbl-wrap"><table class="t">
+        <tr><th>Catalog</th><th>Who writes the tree</th><th>Where it draws</th></tr>
+        <tr><td><code>canvas/v1</code></td><td>Fixed JSON templates (research, quiz, evaluation, score); state fills the data model</td><td>Learning path stages</td></tr>
+        <tr><td><code>feedback/v1</code></td><td>Evaluator LLM via render_a2ui (FeedbackCard, ConceptChip, ReviewLink, NextStepList)</td><td>Feedback stage</td></tr>
+        <tr><td><code>chat/v1</code></td><td>Supervisor, renderSurface target chat</td><td>Inline in the chat (activity)</td></tr>
+        <tr><td><code>board/v1</code></td><td>Supervisor, renderSurface target canvas / updateBoardSurface</td><td>Board tab (state.board)</td></tr>
+      </table></div></div>
+      <div class="box"><h2>Three ways the canvas changes</h2><ul>
+        <li><b>Server tool result</b> → wrapper STATE_DELTA (B2–B6, B8, D1–D3).</li>
+        <li><b>Client write</b> with agent.setState, no run (B7, B12, reflection, confirm new topic). The server sees it in the next run's state.</li>
+        <li><b>Streaming drafts</b> → <code>/draft</code> and <code>/boardDraft</code> deltas while a tool runs, cleared when it ends.</li>
+      </ul></div>
+    </div>`;
+}
+
+function show(id, push=true){
+  const c = id==="overview" ? OVERVIEW : CASES.find(x=>x.id===id);
+  if(!c || c===OVERVIEW) renderOverview(); else renderCase(c);
+  buildNav($("#filter").value);
+  if(push){ try{ history.replaceState(null,"","#"+(c?c.id:"overview")); }catch(e){} }
+  window.scrollTo(0,0);
+}
+document.addEventListener("click", e=>{
+  const b = e.target.closest(".case-btn"); if(b){ show(b.dataset.id); return; }
+  const a = e.target.closest('a[href^="#"]'); if(a){ e.preventDefault(); show(a.getAttribute("href").slice(1)); }
+});
+$("#pick").addEventListener("change", e=>show(e.target.value));
+$("#filter").addEventListener("input", e=>buildNav(e.target.value));
+document.addEventListener("keydown", e=>{
+  if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if(tab==="flow" && flow.c){
+    const n = phasesOf(flow.c).length;
+    if(e.key==="ArrowRight"){ flowStop(); flowGo(Math.min(n-1,flow.i+1)); e.preventDefault(); }
+    if(e.key==="ArrowLeft"){ flowStop(); flowGo(Math.max(0,flow.i-1)); e.preventDefault(); }
+    if(e.key===" "){ flowToggle(); e.preventDefault(); }
+  }
+});
+show((location.hash||"").slice(1) || "overview", false);
+</script>
+
+</body></html>
